@@ -42,13 +42,13 @@ show_missing = true
 
 [tool.coverage.run]
 command_line = "-m pytest"
-source = ["template_python", "tests"]
+source = ["reloading", "tests"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/template_python"]
+include = ["/reloading"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["template_python"]
+packages = ["reloading"]
 
 [tool.hatch.envs.ci]
 dev-mode = false
@@ -87,7 +87,7 @@ features = []
 path = ".venv"
 
 [tool.hatch.version]
-path = "template_python/__init__.py"
+path = "reloading/__init__.py"
 
 [tool.mypy]
 files = ["**/*.py"]
@@ -100,7 +100,7 @@ minversion = "6.0"
 testpaths = ["tests"]
 
 [tool.ruff]
-src = ["template_python", "tests"]
+src = ["reloading", "tests"]
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -109,4 +109,4 @@ docstring-code-format = true
 extend-select = ["I"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["template_python", "tests"]
+known-first-party = ["reloading", "tests"]

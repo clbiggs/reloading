@@ -191,5 +191,6 @@ pip-selfcheck.json
 !.vscode/launch.json
 .history
 .ionide
+.idea
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,python,virtualenv,visualstudiocode
