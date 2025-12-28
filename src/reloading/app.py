@@ -3,7 +3,7 @@ import os, json, pandas as pd, plotly, plotly.express as px
 from decimal import Decimal
 from flask import Flask, render_template, request, redirect, url_for, flash
 from database import db, Firearm, Bullet, Powder, Cartridge, Load, TestSession, TestResult, Shot
-from sqlalchemy import func
+from sqlalchemy import func, or_, asc, desc, cast, String
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'reloading_secret_key')
@@ -91,8 +91,32 @@ def index():
 # --- FIREARM LIST ---
 @app.route('/firearms')
 def list_firearms():
-    firearms = Firearm.query.all()
-    return render_template('firearms/list.html', firearms=firearms)
+    # Get parameters from URL
+    search = request.args.get('search', '')
+    sort = request.args.get('sort', 'make')
+    order = request.args.get('order', 'asc')
+
+    # Start the base query
+    query = Firearm.query
+
+    if search:
+        query = query.filter(
+            or_(
+                Firearm.make.ilike(f'%{search}%'),
+                Firearm.model.ilike(f'%{search}%'),
+                cast(Firearm.caliber, String).ilike(f'%{search}%')
+            )
+        )
+
+    sort_colum = getattr(Firearm, sort, Firearm.make)
+    if order == 'desc':
+        query = query.order_by(desc(sort_colum))
+    else:
+        query = query.order_by(asc(sort_colum))
+
+    firearms = query.all()
+
+    return render_template('firearms/list.html', firearms=firearms, search=search, current_sort=sort, current_order=order)
 
 # --- ADD FIREARM ---
 @app.route('/firearms/add', methods=['GET', 'POST'])
@@ -117,7 +141,7 @@ def add_firearm():
 def edit_firearm(fid):
     f = Firearm.query.get_or_404(fid)
     if request.method == 'POST':
-        f.name = request.form['name']
+        f.make = request.form['make']
         f.model = request.form['model']
         f.caliber = request.form['caliber']
         f.barrel_length = request.form['barrel_length']
@@ -127,7 +151,6 @@ def edit_firearm(fid):
         return redirect(url_for('list_firearms'))
     return render_template('firearms/form.html', firearm=f)
 
-
 # --- DELETE FIREARM ---
 @app.route('/firearms/delete/<int:fid>', methods=['POST'])
 def delete_firearm(fid):
@@ -136,7 +159,6 @@ def delete_firearm(fid):
 #    db.session.commit()
     flash('Firearm removed.' + fid)
     return redirect(url_for('list_firearms'))
-
 
 # --- FIREARM DETAILS & ANALYTICS ---
 @app.route('/firearm/<int:fid>')
@@ -189,6 +211,107 @@ def firearm_detail(fid):
 
     return render_template('firearms/detail.html', firearm=f, sessions=sessions, chart_json=chart_json, summary=summary)
 
+
+# --- BULLET LIST ---
+@app.route('/bullets')
+def list_bullets():
+    # Get parameters from URL
+    search = request.args.get('search', '')
+    sort = request.args.get('sort', 'manufacturer')
+    order = request.args.get('order', 'asc')
+
+    # Start the base query
+    query = Bullet.query
+
+    if search:
+        query = query.filter(
+            or_(
+                Bullet.manufacturer.ilike(f'%{search}%'),
+                Bullet.model.ilike(f'%{search}%'),
+                cast(Bullet.weight_grains, String).ilike(f'%{search}%'),
+                cast(Bullet.caliber, String).ilike(f'%{search}%')
+            )
+        )
+
+    sort_colum = getattr(Bullet, sort, Bullet.manufacturer)
+    if order == 'desc':
+        query = query.order_by(desc(sort_colum))
+    else:
+        query = query.order_by(asc(sort_colum))
+
+    bullets = query.all()
+
+    return render_template('bullets/list.html', bullets=bullets, search=search, current_sort=sort, current_order=order)
+
+# --- ADD BULLET ---
+@app.route('/bullets/add', methods=['GET', 'POST'])
+def add_bullet():
+    if request.method == 'POST':
+        new_b = Bullet(
+            manufacturer=request.form['manufacturer'],
+            model=request.form['model'],
+            weight_grains=request.form['weight_grains'],
+            overall_length_inch=request.form['overall_length_inch'],
+            caliber=request.form['caliber'],
+            ballistic_coefficient_g7=request.form['ballistic_coefficient_g7'],
+            ballistic_coefficient_g1=request.form['ballistic_coefficient_g1']
+        )
+        db.session.add(new_b)
+        db.session.commit()
+        flash('Bullet added successfully!')
+        return redirect(url_for('list_bullets'))
+    return render_template('bullets/form.html', firearm=None)
+
+# --- EDIT BULLET ---
+@app.route('/bullets/edit/<int:bid>', methods=['GET', 'POST'])
+def edit_bullet(bid):
+    b = Bullet.query.get_or_404(bid)
+    if request.method == 'POST':
+        b.manufacturer = request.form['manufacturer'],
+        b.model = request.form['model'],
+        b.weight_grains = request.form['weight_grains'],
+        b.overall_length_inch = request.form['overall_length_inch'],
+        b.caliber = request.form['caliber'],
+        b.ballistic_coefficient_g7 = request.form['ballistic_coefficient_g7'],
+        b.ballistic_coefficient_g1 = request.form['ballistic_coefficient_g1']
+        db.session.commit()
+        return redirect(url_for('list_bullets'))
+    return render_template('bullets/form.html', bullet=b)
+
+# --- DELETE BULLET ---
+@app.route('/bullets/delete/<int:bid>', methods=['POST'])
+def delete_bullet(bid):
+    #    b = Bullet.query.get_or_404(bid)
+    #    db.session.delete(b)
+    #    db.session.commit()
+    flash('Bullet removed.' + bid)
+    return redirect(url_for('list_bullets'))
+
+# --- BULLET DETAILS & ANALYTICS ---
+@app.route('/bullets/<int:bid>')
+def bullet_detail(bid):
+    b = Bullet.query.get_or_404(bid)
+
+    loads = Load.query.filter_by(bullet_id=bid).all()
+
+    seen_session_ids = set()
+    sessions = []
+    seen_firearm_ids = set()
+    firearms = []
+
+    for l in loads:
+        for r in l.test_results:
+            s = r.test_session
+            sessions.append(s)
+            seen_session_ids.add(s.session_id)
+            if s.firearm and s.firearm.firearm_id not in seen_firearm_ids:
+                firearms.append(s.firearm)
+                seen_firearm_ids.add(s.firearm.firearm_id)
+
+    sessions.sort(key=lambda x: x.test_date, reverse=True)
+    firearms.sort(key=lambda f: f.make)
+
+    return render_template('bullets/detail.html', bullet=b, loads=loads, sessions=sessions, firearms=firearms)
 
 def format_numeric_caliber(val):
     if val is None:

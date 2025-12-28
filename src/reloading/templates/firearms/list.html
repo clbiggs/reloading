@@ -5,14 +5,49 @@
     <a href="{{ url_for('add_firearm') }}" class="btn btn-primary">+ Add New Firearm</a>
 </div>
 
+<!-- Search and Filter Bar -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <form method="GET" action="{{ url_for('list_firearms') }}" class="d-flex gx-2">
+            <input type="text" name="search" class="form-control" placeholder="Search make, model, or caliber ..." value="{{ search }}">
+            <button type="submit" class="btn btn-secondary ms-2">Search</button>
+            {% if search %}
+                <a href="{{ url_for('list_firearms') }}" class="btn btn-outline-secondary ms-1">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
 <div class="card shadow-sm">
     <table class="table table-hover mb-0">
         <thead class="table-dark">
             <tr>
-                <th>Make/Model</th>
-                <th>Caliber</th>
-                <th>Twist</th>
-                <th>Barrel</th>
+                {% set next_order = 'desc' if current_order == 'asc' else 'asc' %}
+
+                <th>
+                    <a href="{{ url_for('list_firearms', sort='make', order=next_order, search=search) }}" class="text-white text-decoration-none">
+                        Make/Model
+                        {% if current_sort == 'make' %} {{ '↑' if current_order == 'asc' else '↓' }} {% endif %}
+                    </a>
+                </th>
+                <th>
+                    <a href="{{ url_for('list_firearms', sort='caliber', order=next_order, search=search) }}" class="text-white text-decoration-none">
+                        Caliber
+                        {% if current_sort == 'caliber' %} {{ '↑' if current_order == 'asc' else '↓' }} {% endif %}
+                    </a>
+                </th>
+                <th>
+                    <a href="{{ url_for('list_firearms', sort='twist_rate', order=next_order, search=search) }}" class="text-white text-decoration-none">
+                        Twist
+                        {% if current_sort == 'twist_rate' %} {{ '↑' if current_order == 'asc' else '↓' }} {% endif %}
+                    </a>
+                </th>
+                <th>
+                    <a href="{{ url_for('list_firearms', sort='barrel_length', order=next_order, search=search) }}" class="text-white text-decoration-none">
+                        Barrel
+                        {% if current_sort == 'barrel_length' %} {{ '↑' if current_order == 'asc' else '↓' }} {% endif %}
+                    </a>
+                </th>
                 <th class="text-end">Actions</th>
             </tr>
         </thead>
@@ -24,12 +59,16 @@
                 <td>{{ f.twist_rate }}</td>
                 <td>{{ f.barrel_length }}"</td>
                 <td class="text-end">
-                    <a href="{{ url_for('firearm_detail', fid=f.firearm_id) }}" class="btn btn-sm btn-info">Analyze</a>
+                    <a href="{{ url_for('firearm_detail', fid=f.firearm_id) }}" class="btn btn-sm btn-info">Details</a>
                     <a href="{{ url_for('edit_firearm', fid=f.firearm_id) }}" class="btn btn-sm btn-outline-warning">Edit</a>
                     <form action="{{ url_for('delete_firearm', fid=f.firearm_id) }}" method="POST" style="display:inline;">
                         <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this firearm?')">Delete</button>
                     </form>
                 </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center py-4 text-muted">No firearms found matching your criteria.</td>
             </tr>
             {% endfor %}
         </tbody>

@@ -1,0 +1,28 @@
+{% macro caliber_help_popover() %}
+{%- set mappings = [
+    ('.223 - .224', '5.56mm'), ('.243', '6mm'), ('.264', '6.5mm'),
+    ('.277', '6.8mm'), ('.284', '7mm'), ('.308', '7.62mm'),
+    ('.311', '7.62mm Rus'), ('.355 - .356', '9mm'),
+    ('.357', '9mm / .38 special'), ('.400', '10mm'), ('.500', '12.7mm')
+] -%}
+{%- set table_html -%}
+    <table class="table table-sm table-borderless mb-0" style="font-size:0.8rem;">
+        <thead><tr class="border-bottom"><th>Inch</th><th>Metric</th></tr></thead>
+        <tbody>
+            {% for inch, metric in mappings %}
+            <tr><td>{{ inch }}</td><td>{{ metric }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{%- endset -%}
+
+<a href="javascript:void(0);" class="text-info ms-1"
+   data-bs-toggle="popover" 
+   data-bs-trigger="focus"
+   data-bs-html="true"
+   data-bs-sanitize="false"
+   data-bs-title="Industry Conversions"
+   data-bs-content='{{ table_html | replace("\n", "") | replace("  ","") | e }}' >
+    <i class="bi bi-question-circle"></i>
+</a>
+{% endmacro %}

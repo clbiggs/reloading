@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('list_bullets') }}">Bullets</a></li>
+    <li class="breadcrumb-item active">{{ bullet.manufacturer }} {{ bullet.model }}</li>
+  </ol>
+</nav>
+
+<div class="row mb-4">
+    <!-- Bullet Specs -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white">Bullet Specifications <a class="text-info ms-1" href="{{ url_for('edit_bullet', bid=bullet.bullet_id) }}"><i class="bi bi-pencil float-end"></i></a></div>
+            <div class="card-body">
+                <h3>{{ bullet.manufacturer }}</h3>
+                <h5>{{ bullet.model }}</h5>
+                <hr>
+                <p><strong>Weight:</strong> {{ bullet.weight_grains }} gr</p>
+                <p><strong>Caliber:</strong> {{ bullet.caliber | display_caliber }}</p>
+                <p><strong>Overall Length:</strong> {{ bullet.overall_length_inch }}"</p>
+                <p><strong>Ballistic Coefficient:</strong> {{ bullet.ballistic_coefficient_g1 or '-' }} G1 / {{ bullet.ballistic_coefficient_g7 or '-' }} G7 </p>
+            </div>
+        </div>
+    </div
+
+
+    <!-- Summary Stats -->
+    <div class="col-md-8">
+        <div class="row g-3">
+            <div class="col-sm-4">
+                <div class="card bg-primary text-white text-center p-3">
+                    <h6>Firearms</h6>
+                    <h4>{{ firearms | length }} <small>total</small></h4>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="card bg-success text-white text-center p-3">
+                    <h6>Loads/Recipes</h6>
+                    <h4>{{ loads | length }} <small>total</small></h4>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="card bg-info text-white text-center p-3">
+                    <h6>Sessions</h6>
+                    <h4>{{ sessions | length }} <small>total</small></h4>
+                </div>
+            </div>
+        </div>
+
+{% endblock %}

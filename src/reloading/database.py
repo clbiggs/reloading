@@ -12,6 +12,7 @@ class Firearm(db.Model):
     barrel_length = db.Column(db.Numeric(4,2))
     twist_rate = db.Column(db.String(20))
     notes = db.Column(db.Text)
+    test_sessions = db.relationship('TestSession', backref='firearm', lazy=True)
 
 class Bullet(db.Model):
     __tablename__ = 'bullets'
@@ -23,43 +24,47 @@ class Bullet(db.Model):
     caliber = db.Column(db.Numeric(4,3))
     ballistic_coefficient_g7 = db.Column(db.Numeric(5,4))
     ballistic_coefficient_g1 = db.Column(db.Numeric(5,4))
+    loads = db.relationship('Load', backref='bullet', lazy=True)
 
 class Powder(db.Model):
     __tablename__ = 'powders'
     powder_id = db.Column(db.Integer, primary_key=True)
     manufacturer = db.Column(db.String(100))
     name = db.Column(db.String(100))
+    loads = db.relationship('Load', backref='powder', lazy=True)
 
 class Cartridge(db.Model):
     __tablename__ = 'cartridges'
     cartridge_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True)
+    loads = db.relationship('Load', backref='cartridge', lazy=True)
 
 class Load(db.Model):
     __tablename__ = 'loads'
     load_id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    cartridge_id = db.Column(db.Integer, db.ForeignKey('cartridge.id'))
-    bullet_id = db.Column(db.Integer, db.ForeignKey('bullet.id'))
-    powder_id = db.Column(db.Integer, db.ForeignKey('powder.id'))
+    cartridge_id = db.Column(db.Integer, db.ForeignKey('cartridges.cartridge_id'))
+    bullet_id = db.Column(db.Integer, db.ForeignKey('bullets.bullet_id'))
+    powder_id = db.Column(db.Integer, db.ForeignKey('powders.powder_id'))
     powder_weight_grains = db.Column(db.Float)
-    primer_details = db.column(db.String(100))
-    case_details = db.column(db.String(100))
-    overall_length_inches = db.Column(db.Float)
+    primer_details = db.Column(db.String(100))
+    case_details = db.Column(db.String(100))
+    overall_length_inch = db.Column(db.Float)
     base_to_ogive_inch = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     notes = db.Column(db.Text)
+    test_results = db.relationship('TestResult', backref='load', lazy=True)
 
 class TestSession(db.Model):
     __tablename__ = 'test_sessions'
     session_id = db.Column(db.Integer, primary_key=True)
-    firearm_id = db.Column(db.Integer, db.ForeignKey('firearm.id'))
+    firearm_id = db.Column(db.Integer, db.ForeignKey('firearms.firearm_id'))
     test_date = db.Column(db.DateTime)
     location = db.Column(db.String(200))
     temperature_f = db.Column(db.Integer)
     density_altitude_ft = db.Column(db.Integer)
     humidity_percent = db.Column(db.Integer)
     notes = db.Column(db.Text)
+    test_results = db.relationship('TestResult', backref='test_session', lazy=True)
 
 class TestResult(db.Model):
     __tablename__ = 'test_results'
@@ -75,6 +80,7 @@ class TestResult(db.Model):
     notes = db.Column(db.Text)
     max = db.Column(db.Numeric(7,2))
     min = db.Column(db.Numeric(7,2))
+    shots = db.relationship('Shot', backref='test_result', lazy=True)
 
 class Shot(db.Model):
     __tablename__ = 'shots'
