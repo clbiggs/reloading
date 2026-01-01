@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('list_cartridges') }}">Cartridge</a></li>
+    <li class="breadcrumb-item active">{{ cartridge.name }}</li>
+  </ol>
+</nav>
+
+<div class="row mb-4">
+    <!-- Cartridge Specs -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white">Cartridge Specifications <a class="text-info ms-1" href="{{ url_for('edit_cartridge', cid=cartridge.cartridge_id) }}"><i class="bi bi-pencil float-end"></i></a></div>
+            <div class="card-body">
+                <h5>{{ cartridge.name }}</h5>
+                <h6>{{ cartridge.primer_type }}</h6>
+                <hr>
+                <p><strong>Trim Length:</strong> {{ cartridge.max_trim_length_in}}"</p>
+                <p><strong>Cartridge Overall Length (COAL):</strong> {{ cartridge.max_coal_in }}"</p>
+            </div>
+        </div>
+    </div
+
+
+    <!-- Summary Stats -->
+    <div class="col-md-8">
+        <div class="row g-3">
+            <div class="col-sm-4">
+                <div class="card bg-primary text-white text-center p-3">
+                    <h6>Firearms</h6>
+                    <h4>{{ firearms | length }} <small>total</small></h4>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="card bg-success text-white text-center p-3">
+                    <h6>Loads/Recipes</h6>
+                    <h4>{{ loads | length }} <small>total</small></h4>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="card bg-info text-white text-center p-3">
+                    <h6>Sessions</h6>
+                    <h4>{{ session_ids | length }} <small>total</small></h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+
+            <!-- Data Groups Column -->
+            <div class="col-md-12">
+
+                <!-- Associated Firearms -->
+                <h4 class="mb-3">Observed In Firearms</h4>
+                <div class="card shadow-sm mb-4">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Firearm</th>
+                                <th>Caliber</th>
+                                <th>Twist</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in firearms %}
+                            <tr>
+                                <td><strong>{{ f.make }}</strong> {{ f.model }}</td>
+                                <td>{{ f.caliber | display_caliber }}</td>
+                                <td>{{ f.twist_rate }}</td>
+                                <td><a href="{{ url_for('firearm_detail', fid=f.firearm_id) }}" class="btn btn-sm btn-outline-primary">View Firearm</a></td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-muted text-center">No firearm data recorded for this cartridge yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Associated Loads -->
+                <h4 class="mb-3">Related Load Recipes</h4>
+                <div class="card shadow-sm mb-4">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Bullet</th>
+                                <th>Charge (gr)</th>
+                                <th>Overall Length - COAL (inch)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for l in loads %}
+                            <tr>
+                                <td><strong>{{ l.bullet.manufacturer }}</strong> - {{ l.bullet.model }}</td>
+                                <td>{{ l.powder_weight_grains }}</td>
+                                <td>{{ l.overall_length_inch }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-muted text-center">No loads created for this cartridge.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Testing Sessions -->
+                <h4 class="mb-3">Test Sessions</h4>
+                <div class="card shadow-sm mb-4">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Firearm</th>
+                                <th>Avg Velocity (fps)</th>
+                                <th>Group Size (moa)</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in results %}
+                            <tr>
+                                <td>{{ r.test_session.test_date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ r.test_session.firearm.model }}</td>
+                                <td>{{ r.muzzle_velocity_avg|round(0) }}</td>
+                                <td>{{ r.group_size_moa }}</td>
+                                <td class="text-end">
+                                <a href="" class="btn btn-sm btn-info text-white">Analyze Session</a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="text-muted text-center">No test sessions recorded.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,4 +1,8 @@
-import os, json, pandas as pd, plotly, plotly.express as px
+import os
+import json
+import pandas as pd
+import plotly
+import plotly.express as px
 
 from decimal import Decimal
 from flask import Flask, render_template, request, redirect, url_for, flash
@@ -9,6 +13,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'reloading_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 db.init_app(app)
+
 
 @app.route('/')
 def index():
@@ -88,6 +93,7 @@ def index():
                            powders=powders,
                            results=results)
 
+
 # --- FIREARM LIST ---
 @app.route('/firearms')
 def list_firearms():
@@ -116,7 +122,9 @@ def list_firearms():
 
     firearms = query.all()
 
-    return render_template('firearms/list.html', firearms=firearms, search=search, current_sort=sort, current_order=order)
+    return render_template('firearms/list.html', firearms=firearms, search=search, current_sort=sort,
+                           current_order=order)
+
 
 # --- ADD FIREARM ---
 @app.route('/firearms/add', methods=['GET', 'POST'])
@@ -136,6 +144,7 @@ def add_firearm():
         return redirect(url_for('list_firearms'))
     return render_template('firearms/form.html', firearm=None)
 
+
 # --- EDIT FIREARM ---
 @app.route('/firearms/edit/<int:fid>', methods=['GET', 'POST'])
 def edit_firearm(fid):
@@ -151,14 +160,16 @@ def edit_firearm(fid):
         return redirect(url_for('list_firearms'))
     return render_template('firearms/form.html', firearm=f)
 
+
 # --- DELETE FIREARM ---
 @app.route('/firearms/delete/<int:fid>', methods=['POST'])
 def delete_firearm(fid):
-#    f = Firearm.query.get_or_404(fid)
-#    db.session.delete(f)
-#    db.session.commit()
+    #    f = Firearm.query.get_or_404(fid)
+    #    db.session.delete(f)
+    #    db.session.commit()
     flash('Firearm removed.' + fid)
     return redirect(url_for('list_firearms'))
+
 
 # --- FIREARM DETAILS & ANALYTICS ---
 @app.route('/firearm/<int:fid>')
@@ -186,6 +197,8 @@ def firearm_detail(fid):
         .join(Firearm, TestSession.firearm_id == Firearm.firearm_id)
         .join(Load, TestResult.load_id == Load.load_id)
         .join(Bullet, Load.bullet_id == Bullet.bullet_id)
+        .join(Shot, TestResult.result_id == Shot.result_id)
+        .join(Powder, Load.powder_id == Powder.powder_id)
         .filter(Firearm.firearm_id == fid)
     )
 
@@ -205,7 +218,7 @@ def firearm_detail(fid):
             df, x="powder_weight_grains", y="velocity_fps", color="full_name",
             title=f"Load Performance: {f.make} {f.model}",
             labels={"powder_weight_grains": "Charge (gr)", "velocity_fps": "Velocity (fps)", "full_name": "Load Name"},
-            template="plotly_white", trendline="lowess"
+            template="plotly_white", trendline="ols"
         )
         chart_json = json.dumps(fig, cls=plotly.utils.PlotlyJSONEncoder)
 
@@ -243,6 +256,7 @@ def list_bullets():
 
     return render_template('bullets/list.html', bullets=bullets, search=search, current_sort=sort, current_order=order)
 
+
 # --- ADD BULLET ---
 @app.route('/bullets/add', methods=['GET', 'POST'])
 def add_bullet():
@@ -262,21 +276,23 @@ def add_bullet():
         return redirect(url_for('list_bullets'))
     return render_template('bullets/form.html', firearm=None)
 
+
 # --- EDIT BULLET ---
 @app.route('/bullets/edit/<int:bid>', methods=['GET', 'POST'])
 def edit_bullet(bid):
     b = Bullet.query.get_or_404(bid)
     if request.method == 'POST':
-        b.manufacturer = request.form['manufacturer'],
-        b.model = request.form['model'],
-        b.weight_grains = request.form['weight_grains'],
-        b.overall_length_inch = request.form['overall_length_inch'],
-        b.caliber = request.form['caliber'],
-        b.ballistic_coefficient_g7 = request.form['ballistic_coefficient_g7'],
+        b.manufacturer = request.form['manufacturer']
+        b.model = request.form['model']
+        b.weight_grains = request.form['weight_grains']
+        b.overall_length_inch = request.form['overall_length_inch']
+        b.caliber = request.form['caliber']
+        b.ballistic_coefficient_g7 = request.form['ballistic_coefficient_g7']
         b.ballistic_coefficient_g1 = request.form['ballistic_coefficient_g1']
         db.session.commit()
         return redirect(url_for('list_bullets'))
     return render_template('bullets/form.html', bullet=b)
+
 
 # --- DELETE BULLET ---
 @app.route('/bullets/delete/<int:bid>', methods=['POST'])
@@ -286,6 +302,7 @@ def delete_bullet(bid):
     #    db.session.commit()
     flash('Bullet removed.' + bid)
     return redirect(url_for('list_bullets'))
+
 
 # --- BULLET DETAILS & ANALYTICS ---
 @app.route('/bullets/<int:bid>')
@@ -299,8 +316,8 @@ def bullet_detail(bid):
     firearms = []
     seen_session_ids = set()
 
-    for l in loads:
-        for r in l.test_results:
+    for bullet_load in loads:
+        for r in bullet_load.test_results:
             results.append(r)
             s = r.test_session
             seen_session_ids.add(s.session_id)
@@ -311,7 +328,9 @@ def bullet_detail(bid):
     results.sort(key=lambda x: x.test_session.test_date, reverse=True)
     firearms.sort(key=lambda f: f.make)
 
-    return render_template('bullets/detail.html', bullet=b, loads=loads, results=results, firearms=firearms, session_ids=seen_session_ids)
+    return render_template('bullets/detail.html', bullet=b, loads=loads, results=results, firearms=firearms,
+                           session_ids=seen_session_ids)
+
 
 # --- POWDER LIST ---
 @app.route('/powders')
@@ -344,6 +363,7 @@ def list_powders():
 
     return render_template('powders/list.html', powders=powders, search=search, current_sort=sort, current_order=order)
 
+
 # --- ADD POWDER ---
 @app.route('/powders/add', methods=['GET', 'POST'])
 def add_powder():
@@ -363,8 +383,8 @@ def add_powder():
 def edit_powder(pid):
     p = Powder.query.get_or_404(pid)
     if request.method == 'POST':
-        p.manufacturer = request.form['manufacturer'],
-        p.name = request.form['name'],
+        p.manufacturer = request.form['manufacturer']
+        p.name = request.form['name']
         db.session.commit()
         return redirect(url_for('list_powders'))
     return render_template('powders/form.html', powder=p)
@@ -372,7 +392,7 @@ def edit_powder(pid):
 # --- DELETE POWDER ---
 @app.route('/powders/delete/<int:pid>', methods=['POST'])
 def delete_powder(pid):
-    #    p = Bullet.query.get_or_404(bid)
+    #    p = Cartridge.query.get_or_404(pid)
     #    db.session.delete(p)
     #    db.session.commit()
     flash('Powder removed.' + pid)
@@ -389,9 +409,9 @@ def powder_detail(pid):
     seen_session_ids = set()
     loads = []
 
-    for l in powder.loads:
-        loads.append(l)
-        for r in l.test_results:
+    for powder_load in powder.loads:
+        loads.append(powder_load)
+        for r in powder_load.test_results:
             results.append(r)
             s = r.test_session
             seen_session_ids.add(s.session_id)
@@ -402,7 +422,105 @@ def powder_detail(pid):
     results.sort(key=lambda x: x.test_session.test_date, reverse=True)
     firearms.sort(key=lambda f: f.make)
 
-    return render_template('powders/detail.html', powder=powder, loads=loads, results=results, firearms=firearms, session_ids=seen_session_ids)
+    return render_template('powders/detail.html', powder=powder, loads=loads, results=results, firearms=firearms,
+                           session_ids=seen_session_ids)
+
+
+# --- CARTRIDGES LIST ---
+@app.route('/cartridges')
+def list_cartridges():
+    # Get parameters from URL
+    search = request.args.get('search', '')
+    sort = request.args.get('sort', 'name')
+    order = request.args.get('order', 'asc')
+
+    # Start the base query
+    query = Cartridge.query
+
+    if search:
+        query = query.filter(
+            or_(
+                Cartridge.name.ilike(f'%{search}%'),
+                Cartridge.primer_type.ilike(f'%{search}%'),
+                cast(Cartridge.max_trim_length_in, String).ilike(f'%{search}%'),
+                cast(Cartridge.max_coal_in, String).ilike(f'%{search}%')
+            )
+        )
+
+    sort_colum = getattr(Cartridge, sort, Cartridge.name)
+    if order == 'desc':
+        query = query.order_by(desc(sort_colum))
+    else:
+        query = query.order_by(asc(sort_colum))
+
+    cartridges = query.all()
+
+    return render_template('cartridges/list.html', cartridges=cartridges, search=search, current_sort=sort, current_order=order)
+
+# --- ADD CARTRIDGE ---
+@app.route('/cartridges/add', methods=['GET', 'POST'])
+def add_cartridge():
+    if request.method == 'POST':
+        new_c = Cartridge(
+            name=request.form['name'],
+            max_trim_length_in=request.form['max_trim_length_in'],
+            max_coal_in=request.form['max_coal_in'],
+            primer_type=request.form['primer_type']
+        )
+        db.session.add(new_c)
+        db.session.commit()
+        flash('Cartridge added successfully!')
+        return redirect(url_for('list_cartridges'))
+    return render_template('cartridges/form.html', cartridge=None)
+
+# --- EDIT CARTRIDGE ---
+@app.route('/cartridges/edit/<int:cid>', methods=['GET', 'POST'])
+def edit_cartridge(cid):
+    c = Cartridge.query.get_or_404(cid)
+    if request.method == 'POST':
+        c.name = request.form['name']
+        c.max_trim_length_in = request.form['max_trim_length_in']
+        c.max_coal_in = request.form['max_coal_in']
+        c.primer_type = request.form['primer_type']
+        db.session.commit()
+        return redirect(url_for('list_cartridges'))
+    return render_template('cartridges/form.html', cartridge=c)
+
+# --- DELETE CARTRIDGE ---
+@app.route('/cartridges/delete/<int:cid>', methods=['POST'])
+def delete_cartridge(cid):
+    #    c = Cartridge.query.get_or_404(cid)
+    #    db.session.delete(c)
+    #    db.session.commit()
+    flash('Cartridge removed.' + cid)
+    return redirect(url_for('list_cartridges'))
+
+# --- CARTRIDGE DETAILS ---
+@app.route('/cartridges/<int:cid>')
+def cartridge_detail(cid):
+    cartridge = Cartridge.query.get_or_404(cid)
+
+    results = []
+    seen_firearm_ids = set()
+    firearms = []
+    seen_session_ids = set()
+    loads = []
+
+    for cartridge_load in cartridge.loads:
+        loads.append(cartridge_load)
+        for r in cartridge_load.test_results:
+            results.append(r)
+            s = r.test_session
+            seen_session_ids.add(s.session_id)
+            if s.firearm and s.firearm.firearm_id not in seen_firearm_ids:
+                firearms.append(s.firearm)
+                seen_firearm_ids.add(s.firearm.firearm_id)
+
+    results.sort(key=lambda x: x.test_session.test_date, reverse=True)
+    firearms.sort(key=lambda f: f.make)
+
+    return render_template('cartridges/detail.html', cartridge=cartridge, loads=loads, results=results, firearms=firearms,
+                           session_ids=seen_session_ids)
 
 def format_numeric_caliber(val):
     if val is None:
@@ -438,6 +556,7 @@ def format_numeric_caliber(val):
     metric = diameter_map.get(normalized_val)
 
     return f"{formatted_str} ({metric})" if metric else formatted_str
+
 
 app.jinja_env.filters['display_caliber'] = format_numeric_caliber
 

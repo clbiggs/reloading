@@ -37,6 +37,9 @@ class Cartridge(db.Model):
     __tablename__ = 'cartridges'
     cartridge_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True)
+    max_trim_length_in = db.Column(db.Numeric(5,4))
+    max_coal_in = db.Column(db.Numeric(5,4))
+    primer_type = db.Column(db.String(50))
     loads = db.relationship('Load', backref='cartridge', lazy=True)
 
 class Load(db.Model):
