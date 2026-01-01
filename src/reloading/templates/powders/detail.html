@@ -2,24 +2,19 @@
 {% block content %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{{ url_for('list_bullets') }}">Bullets</a></li>
-    <li class="breadcrumb-item active">{{ bullet.manufacturer }} {{ bullet.model }}</li>
+    <li class="breadcrumb-item"><a href="{{ url_for('list_powders') }}">Powder</a></li>
+    <li class="breadcrumb-item active">{{ powder.manufacturer }} {{ powder.name }}</li>
   </ol>
 </nav>
 
 <div class="row mb-4">
-    <!-- Bullet Specs -->
+    <!-- Powder Specs -->
     <div class="col-md-4">
         <div class="card shadow-sm h-100">
-            <div class="card-header bg-dark text-white">Bullet Specifications <a class="text-info ms-1" href="{{ url_for('edit_bullet', bid=bullet.bullet_id) }}"><i class="bi bi-pencil float-end"></i></a></div>
+            <div class="card-header bg-dark text-white">Powder Specifications <a class="text-info ms-1" href="{{ url_for('edit_powder', pid=powder.powder_id) }}"><i class="bi bi-pencil float-end"></i></a></div>
             <div class="card-body">
-                <h3>{{ bullet.manufacturer }}</h3>
-                <h5>{{ bullet.model }}</h5>
-                <hr>
-                <p><strong>Weight:</strong> {{ bullet.weight_grains }} gr</p>
-                <p><strong>Caliber:</strong> {{ bullet.caliber | display_caliber }}</p>
-                <p><strong>Overall Length:</strong> {{ bullet.overall_length_inch }}"</p>
-                <p><strong>Ballistic Coefficient:</strong> {{ bullet.ballistic_coefficient_g1 or '-' }} G1 / {{ bullet.ballistic_coefficient_g7 or '-' }} G7 </p>
+                <h3>{{ powder.manufacturer }}</h3>
+                <h5>{{ powder.name }}</h5>
             </div>
         </div>
     </div
@@ -74,7 +69,7 @@
                                 <td><a href="{{ url_for('firearm_detail', fid=f.firearm_id) }}" class="btn btn-sm btn-outline-primary">View Firearm</a></td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="4" class="text-muted text-center">No firearm data recorded for this bullet yet.</td></tr>
+                            <tr><td colspan="4" class="text-muted text-center">No firearm data recorded for this powder yet.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -86,7 +81,7 @@
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>Powder</th>
+                                <th>Bullet</th>
                                 <th>Charge (gr)</th>
                                 <th>Overall Length - COAL (inch)</th>
                             </tr>
@@ -94,12 +89,12 @@
                         <tbody>
                             {% for l in loads %}
                             <tr>
-                                <td><strong>{{ l.powder.manufacturer }}</strong> - {{ l.powder.name }}</td>
+                                <td><strong>{{ l.bullet.manufacturer }}</strong> - {{ l.bullet.model }}</td>
                                 <td>{{ l.powder_weight_grains }}</td>
                                 <td>{{ l.overall_length_inch }}</td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="4" class="text-muted text-center">No loads created for this bullet.</td></tr>
+                            <tr><td colspan="4" class="text-muted text-center">No loads created for this powder.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

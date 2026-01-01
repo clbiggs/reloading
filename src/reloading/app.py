@@ -294,34 +294,125 @@ def bullet_detail(bid):
 
     loads = Load.query.filter_by(bullet_id=bid).all()
 
-    seen_session_ids = set()
-    sessions = []
+    results = []
     seen_firearm_ids = set()
     firearms = []
+    seen_session_ids = set()
 
     for l in loads:
         for r in l.test_results:
+            results.append(r)
             s = r.test_session
-            sessions.append(s)
             seen_session_ids.add(s.session_id)
             if s.firearm and s.firearm.firearm_id not in seen_firearm_ids:
                 firearms.append(s.firearm)
                 seen_firearm_ids.add(s.firearm.firearm_id)
 
-    sessions.sort(key=lambda x: x.test_date, reverse=True)
+    results.sort(key=lambda x: x.test_session.test_date, reverse=True)
     firearms.sort(key=lambda f: f.make)
 
-    return render_template('bullets/detail.html', bullet=b, loads=loads, sessions=sessions, firearms=firearms)
+    return render_template('bullets/detail.html', bullet=b, loads=loads, results=results, firearms=firearms, session_ids=seen_session_ids)
+
+# --- POWDER LIST ---
+@app.route('/powders')
+def list_powders():
+    # Get parameters from URL
+    search = request.args.get('search', '')
+    sort = request.args.get('sort', 'manufacturer')
+    order = request.args.get('order', 'asc')
+
+    # Start the base query
+    query = Powder.query
+
+    if search:
+        query = query.filter(
+            or_(
+                Powder.manufacturer.ilike(f'%{search}%'),
+                Powder.model.ilike(f'%{search}%'),
+                cast(Powder.weight_grains, String).ilike(f'%{search}%'),
+                cast(Powder.caliber, String).ilike(f'%{search}%')
+            )
+        )
+
+    sort_colum = getattr(Powder, sort, Powder.manufacturer)
+    if order == 'desc':
+        query = query.order_by(desc(sort_colum))
+    else:
+        query = query.order_by(asc(sort_colum))
+
+    powders = query.all()
+
+    return render_template('powders/list.html', powders=powders, search=search, current_sort=sort, current_order=order)
+
+# --- ADD POWDER ---
+@app.route('/powders/add', methods=['GET', 'POST'])
+def add_powder():
+    if request.method == 'POST':
+        new_p = Powder(
+            manufacturer=request.form['manufacturer'],
+            name=request.form['name'],
+        )
+        db.session.add(new_p)
+        db.session.commit()
+        flash('Powder added successfully!')
+        return redirect(url_for('list_powders'))
+    return render_template('powders/form.html', powder=None)
+
+# --- EDIT POWDER ---
+@app.route('/powders/edit/<int:pid>', methods=['GET', 'POST'])
+def edit_powder(pid):
+    p = Powder.query.get_or_404(pid)
+    if request.method == 'POST':
+        p.manufacturer = request.form['manufacturer'],
+        p.name = request.form['name'],
+        db.session.commit()
+        return redirect(url_for('list_powders'))
+    return render_template('powders/form.html', powder=p)
+
+# --- DELETE POWDER ---
+@app.route('/powders/delete/<int:pid>', methods=['POST'])
+def delete_powder(pid):
+    #    p = Bullet.query.get_or_404(bid)
+    #    db.session.delete(p)
+    #    db.session.commit()
+    flash('Powder removed.' + pid)
+    return redirect(url_for('list_powders'))
+
+# --- POWDER DETAILS ---
+@app.route('/powders/<int:pid>')
+def powder_detail(pid):
+    powder = Powder.query.get_or_404(pid)
+
+    results = []
+    seen_firearm_ids = set()
+    firearms = []
+    seen_session_ids = set()
+    loads = []
+
+    for l in powder.loads:
+        loads.append(l)
+        for r in l.test_results:
+            results.append(r)
+            s = r.test_session
+            seen_session_ids.add(s.session_id)
+            if s.firearm and s.firearm.firearm_id not in seen_firearm_ids:
+                firearms.append(s.firearm)
+                seen_firearm_ids.add(s.firearm.firearm_id)
+
+    results.sort(key=lambda x: x.test_session.test_date, reverse=True)
+    firearms.sort(key=lambda f: f.make)
+
+    return render_template('powders/detail.html', powder=powder, loads=loads, results=results, firearms=firearms, session_ids=seen_session_ids)
 
 def format_numeric_caliber(val):
     if val is None:
         return ""
-    
+
     if not isinstance(val, Decimal):
         val = Decimal(str(val))
-        
+
     normalized_val = val.quantize(Decimal('0.000'))
-    
+
     diameter_map = {
         Decimal('0.223'): "5.56mm",
         Decimal('0.224'): "5.56mm",
@@ -349,7 +440,7 @@ def format_numeric_caliber(val):
     return f"{formatted_str} ({metric})" if metric else formatted_str
 
 app.jinja_env.filters['display_caliber'] = format_numeric_caliber
-    
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()

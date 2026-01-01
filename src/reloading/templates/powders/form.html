@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "macros.html" import caliber_help_popover %}
+
+{% block content %}
+<h2>{{ 'Edit' if powder else 'Add' }} Bullet</h2>
+<form method="POST" class="card p-4 shadow-sm">
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label>Manufacturer</label>
+            <input type="text" name="manufacturer" class="form-control" value="{{ powder.manufacturer if powder else '' }}" required>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label>Name</label>
+            <input type="text" name="name" class="form-control" value="{{ powder.name if powder else '' }}" required>
+        </div>
+    </div>
+    <div class="mt-3">
+        <button type="submit" class="btn btn-success">Save Powder</button>
+        <a href="{{ url_for('list_powders') }}" class="btn btn-link">Cancel</a>
+    </div>
+</form>
+{% endblock %}
