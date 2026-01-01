@@ -1,13 +1,24 @@
-import os
 import json
+import os
+from decimal import Decimal
+
 import pandas as pd
 import plotly
 import plotly.express as px
+from flask import Flask, flash, redirect, render_template, request, url_for
+from sqlalchemy import String, asc, cast, desc, func, or_
 
-from decimal import Decimal
-from flask import Flask, render_template, request, redirect, url_for, flash
-from database import db, Firearm, Bullet, Powder, Cartridge, Load, TestSession, TestResult, Shot
-from sqlalchemy import func, or_, asc, desc, cast, String
+from database import (
+    Bullet,
+    Cartridge,
+    Firearm,
+    Load,
+    Powder,
+    Shot,
+    TestResult,
+    TestSession,
+    db,
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'reloading_secret_key')
