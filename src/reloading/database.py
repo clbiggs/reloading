@@ -3,51 +3,56 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 db = SQLAlchemy()
 
+
 class Firearm(db.Model):
-    __tablename__ = 'firearms'
+    __tablename__ = "firearms"
     firearm_id = db.Column(db.Integer, primary_key=True)
     make = db.Column(db.String(100))
     model = db.Column(db.String(100))
-    caliber = db.Column(db.Numeric(4,3))
-    barrel_length = db.Column(db.Numeric(4,2))
+    caliber = db.Column(db.Numeric(4, 3))
+    barrel_length = db.Column(db.Numeric(4, 2))
     twist_rate = db.Column(db.String(20))
     notes = db.Column(db.Text)
-    test_sessions = db.relationship('TestSession', backref='firearm', lazy=True)
+    test_sessions = db.relationship("TestSession", backref="firearm", lazy=True)
+
 
 class Bullet(db.Model):
-    __tablename__ = 'bullets'
+    __tablename__ = "bullets"
     bullet_id = db.Column(db.Integer, primary_key=True)
     manufacturer = db.Column(db.String(100))
     model = db.Column(db.String(100))
-    weight_grains = db.Column(db.Numeric(6,2))
-    overall_length_inch = db.Column(db.Numeric(4,3))
-    caliber = db.Column(db.Numeric(4,3))
-    ballistic_coefficient_g7 = db.Column(db.Numeric(5,4))
-    ballistic_coefficient_g1 = db.Column(db.Numeric(5,4))
-    loads = db.relationship('Load', backref='bullet', lazy=True)
+    weight_grains = db.Column(db.Numeric(6, 2))
+    overall_length_inch = db.Column(db.Numeric(4, 3))
+    caliber = db.Column(db.Numeric(4, 3))
+    ballistic_coefficient_g7 = db.Column(db.Numeric(5, 4))
+    ballistic_coefficient_g1 = db.Column(db.Numeric(5, 4))
+    loads = db.relationship("Load", backref="bullet", lazy=True)
+
 
 class Powder(db.Model):
-    __tablename__ = 'powders'
+    __tablename__ = "powders"
     powder_id = db.Column(db.Integer, primary_key=True)
     manufacturer = db.Column(db.String(100))
     name = db.Column(db.String(100))
-    loads = db.relationship('Load', backref='powder', lazy=True)
+    loads = db.relationship("Load", backref="powder", lazy=True)
+
 
 class Cartridge(db.Model):
-    __tablename__ = 'cartridges'
+    __tablename__ = "cartridges"
     cartridge_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True)
-    max_trim_length_in = db.Column(db.Numeric(5,4))
-    max_coal_in = db.Column(db.Numeric(5,4))
+    max_trim_length_in = db.Column(db.Numeric(5, 4))
+    max_coal_in = db.Column(db.Numeric(5, 4))
     primer_type = db.Column(db.String(50))
-    loads = db.relationship('Load', backref='cartridge', lazy=True)
+    loads = db.relationship("Load", backref="cartridge", lazy=True)
+
 
 class Load(db.Model):
-    __tablename__ = 'loads'
+    __tablename__ = "loads"
     load_id = db.Column(db.Integer, primary_key=True)
-    cartridge_id = db.Column(db.Integer, db.ForeignKey('cartridges.cartridge_id'))
-    bullet_id = db.Column(db.Integer, db.ForeignKey('bullets.bullet_id'))
-    powder_id = db.Column(db.Integer, db.ForeignKey('powders.powder_id'))
+    cartridge_id = db.Column(db.Integer, db.ForeignKey("cartridges.cartridge_id"))
+    bullet_id = db.Column(db.Integer, db.ForeignKey("bullets.bullet_id"))
+    powder_id = db.Column(db.Integer, db.ForeignKey("powders.powder_id"))
     powder_weight_grains = db.Column(db.Float)
     primer_details = db.Column(db.String(100))
     case_details = db.Column(db.String(100))
@@ -55,40 +60,43 @@ class Load(db.Model):
     base_to_ogive_inch = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     notes = db.Column(db.Text)
-    test_results = db.relationship('TestResult', backref='load', lazy=True)
+    test_results = db.relationship("TestResult", backref="load", lazy=True)
+
 
 class TestSession(db.Model):
-    __tablename__ = 'test_sessions'
+    __tablename__ = "test_sessions"
     session_id = db.Column(db.Integer, primary_key=True)
-    firearm_id = db.Column(db.Integer, db.ForeignKey('firearms.firearm_id'))
+    firearm_id = db.Column(db.Integer, db.ForeignKey("firearms.firearm_id"))
     test_date = db.Column(db.DateTime)
     location = db.Column(db.String(200))
     temperature_f = db.Column(db.Integer)
     density_altitude_ft = db.Column(db.Integer)
     humidity_percent = db.Column(db.Integer)
     notes = db.Column(db.Text)
-    test_results = db.relationship('TestResult', backref='test_session', lazy=True)
+    test_results = db.relationship("TestResult", backref="test_session", lazy=True)
+
 
 class TestResult(db.Model):
-    __tablename__ = 'test_results'
+    __tablename__ = "test_results"
     result_id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.Integer, db.ForeignKey('test_sessions.session_id'))
-    load_id = db.Column(db.Integer, db.ForeignKey('loads.load_id'))
+    session_id = db.Column(db.Integer, db.ForeignKey("test_sessions.session_id"))
+    load_id = db.Column(db.Integer, db.ForeignKey("loads.load_id"))
     range_yrd = db.Column(db.Integer)
-    group_size_moa = db.Column(db.Numeric(5,3))
-    muzzle_velocity_avg = db.Column(db.Numeric(7,2))
-    standard_deviation = db.Column(db.Numeric(5,2))
-    extreme_spread = db.Column(db.Numeric(5,2))
+    group_size_moa = db.Column(db.Numeric(5, 3))
+    muzzle_velocity_avg = db.Column(db.Numeric(7, 2))
+    standard_deviation = db.Column(db.Numeric(5, 2))
+    extreme_spread = db.Column(db.Numeric(5, 2))
     shot_count = db.Column(db.Integer)
     notes = db.Column(db.Text)
-    max = db.Column(db.Numeric(7,2))
-    min = db.Column(db.Numeric(7,2))
-    shots = db.relationship('Shot', backref='test_result', lazy=True)
+    max = db.Column(db.Numeric(7, 2))
+    min = db.Column(db.Numeric(7, 2))
+    shots = db.relationship("Shot", backref="test_result", lazy=True)
+
 
 class Shot(db.Model):
-    __tablename__ = 'shots'
+    __tablename__ = "shots"
     shot_id = db.Column(db.Integer, primary_key=True)
-    result_id = db.Column(db.Integer, db.ForeignKey('test_results.result_id'))
+    result_id = db.Column(db.Integer, db.ForeignKey("test_results.result_id"))
     shot_number = db.Column(db.Integer)
-    velocity_fps = db.Column(db.Numeric(7,2))
+    velocity_fps = db.Column(db.Numeric(7, 2))
     trace_data = db.Column(JSONB)
