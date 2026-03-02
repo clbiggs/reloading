@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "macros.html" import delete_button, empty_state, page_header %}
+{% block title %}Test Sessions - Reloading Tracker{% endblock %}
+{% block content %}
+{{ page_header("Test Sessions", url_for('test_sessions.add'), "Add Session") }}
+<div class="card">
+    <div class="card-body p-0">
+        {% if sessions %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Firearm</th>
+                        <th class="d-none d-md-table-cell">Location</th>
+                        <th>Shots</th>
+                        <th>Avg Vel.</th>
+                        <th class="d-none d-sm-table-cell">SD</th>
+                        <th class="d-none d-sm-table-cell">ES</th>
+                        <th class="d-none d-md-table-cell">Group (MOA)</th>
+                        <th class="text-end" style="width:150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in sessions %}
+                    <tr>
+                        <td>{{ s.test_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if s.firearm %}
+                                {{ s.firearm.make }} {{ s.firearm.model }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="d-none d-md-table-cell">{{ s.location or "—" }}</td>
+                        <td>{{ s.shot_count }}</td>
+                        <td>{{ "%.2f"|format(s.velocity_avg) if s.velocity_avg else "—" }}</td>
+                        <td class="d-none d-sm-table-cell">{{ "%.2f"|format(s.standard_deviation) if s.standard_deviation else "—" }}</td>
+                        <td class="d-none d-sm-table-cell">{{ "%.2f"|format(s.extreme_spread) if s.extreme_spread else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ "%.4f"|format(s.grouping_size) if s.grouping_size else "—" }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('test_sessions.view', id=s.id) }}" class="btn btn-outline-info btn-action" title="View"><i class="bi bi-eye"></i></a>
+                            <a href="{{ url_for('test_sessions.edit', id=s.id) }}" class="btn btn-outline-primary btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                            {{ delete_button(url_for('test_sessions.delete', id=s.id), "this session") }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            {{ empty_state("test sessions", url_for('test_sessions.add')) }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

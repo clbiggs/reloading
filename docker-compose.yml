@@ -1,0 +1,17 @@
+services:
+  reloading-tracker:
+    build: .
+    container_name: reloading-tracker
+    ports:
+      - "5000:5000"
+    volumes:
+      - reloading-data:/data
+    environment:
+      - DATABASE_PATH=/data/reloading.db
+      - SECRET_KEY=change-this-to-a-secure-random-key
+    restart: unless-stopped
+
+volumes:
+  reloading-data:
+    driver: local
+

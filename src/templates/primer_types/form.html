@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "macros.html" import form_actions %}
+{% block title %}{{ "Edit" if primer_type else "Add" }} Primer Type - Reloading Tracker{% endblock %}
+{% block content %}
+<h2>{{ "Edit" if primer_type else "Add" }} Primer Type</h2>
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ primer_type.name if primer_type else '' }}" required placeholder="e.g. Small Rifle, Large Pistol">
+            </div>
+            {{ form_actions(url_for('primer_types.index')) }}
+        </form>
+    </div>
+</div>
+{% endblock %}
+

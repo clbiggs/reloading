@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "macros.html" import form_actions %}
+{% block title %}{{ "Edit" if casing else "Add" }} Casing - Reloading Tracker{% endblock %}
+{% block content %}
+<h2>{{ "Edit" if casing else "Add" }} Casing</h2>
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ casing.name if casing else '' }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="primer_type_id" class="form-label">Primer Type <span class="text-danger">*</span></label>
+                    <select class="form-select" id="primer_type_id" name="primer_type_id" required>
+                        <option value="">Select primer type...</option>
+                        {% for pt in primer_types %}
+                        <option value="{{ pt.id }}" {% if casing and casing.primer_type_id == pt.id %}selected{% endif %}>{{ pt.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="max_trim_length" class="form-label">Max Trim Length (in)</label>
+                    <input type="number" step="0.0001" class="form-control" id="max_trim_length" name="max_trim_length" value="{{ '%.4f'|format(casing.max_trim_length) if casing and casing.max_trim_length else '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label for="overall_length" class="form-label">Overall Length (in)</label>
+                    <input type="number" step="0.0001" class="form-control" id="overall_length" name="overall_length" value="{{ '%.4f'|format(casing.overall_length) if casing and casing.overall_length else '' }}">
+                </div>
+            </div>
+            {{ form_actions(url_for('casings.index')) }}
+        </form>
+    </div>
+</div>
+{% endblock %}
+

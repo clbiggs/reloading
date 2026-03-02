@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "macros.html" import form_actions %}
+{% block title %}{{ "Edit" if bullet else "Add" }} Bullet - Reloading Tracker{% endblock %}
+{% block content %}
+<h2>{{ "Edit" if bullet else "Add" }} Bullet</h2>
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="manufacturer_id" class="form-label">Manufacturer <span class="text-danger">*</span></label>
+                    <select class="form-select" id="manufacturer_id" name="manufacturer_id" required>
+                        <option value="">Select manufacturer...</option>
+                        {% for m in manufacturers %}
+                        <option value="{{ m.id }}" {% if bullet and bullet.manufacturer_id == m.id %}selected{% endif %}>{{ m.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="model" class="form-label">Model <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="model" name="model" value="{{ bullet.model if bullet else '' }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="weight" class="form-label">Weight (grains) <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" class="form-control" id="weight" name="weight" value="{{ '%.2f'|format(bullet.weight) if bullet else '' }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="caliber_id" class="form-label">Caliber <span class="text-danger">*</span></label>
+                    <select class="form-select" id="caliber_id" name="caliber_id" required>
+                        <option value="">Select caliber...</option>
+                        {% for c in calibers %}
+                        <option value="{{ c.id }}" {% if bullet and bullet.caliber_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="overall_length" class="form-label">Overall Length (in)</label>
+                    <input type="number" step="0.0001" class="form-control" id="overall_length" name="overall_length" value="{{ '%.4f'|format(bullet.overall_length) if bullet and bullet.overall_length else '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label for="g1_bc" class="form-label">G1 Ballistic Coefficient</label>
+                    <input type="number" step="0.001" class="form-control" id="g1_bc" name="g1_bc" value="{{ bullet.g1_bc if bullet and bullet.g1_bc else '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label for="g7_bc" class="form-label">G7 Ballistic Coefficient</label>
+                    <input type="number" step="0.001" class="form-control" id="g7_bc" name="g7_bc" value="{{ bullet.g7_bc if bullet and bullet.g7_bc else '' }}">
+                </div>
+            </div>
+            {{ form_actions(url_for('bullets.index')) }}
+        </form>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Reloading Tracker{% endblock %}
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-speedometer2"></i> Dashboard</h2>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="card stat-card primary h-100">
+            <div class="card-body text-center">
+                <div class="stat-value text-primary">{{ firearm_count }}</div>
+                <div class="text-muted small">Firearms</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="card stat-card success h-100">
+            <div class="card-body text-center">
+                <div class="stat-value text-success">{{ load_count }}</div>
+                <div class="text-muted small">Loads/Recipes</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="card stat-card warning h-100">
+            <div class="card-body text-center">
+                <div class="stat-value text-warning">{{ session_count }}</div>
+                <div class="text-muted small">Test Sessions</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="card stat-card info h-100">
+            <div class="card-body text-center">
+                <div class="stat-value text-info">{{ bullet_count }}</div>
+                <div class="text-muted small">Bullets</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="card stat-card danger h-100">
+            <div class="card-body text-center">
+                <div class="stat-value text-danger">{{ powder_count }}</div>
+                <div class="text-muted small">Powders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2">
+        <div class="card h-100" style="border-left: 4px solid #6f42c1;">
+            <div class="card-body text-center">
+                <a href="/upload" class="btn btn-outline-light btn-lg mt-1">
+                    <i class="bi bi-upload"></i> Import
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Recent Test Sessions</h5>
+                <a href="/test-sessions" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_sessions %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Firearm</th>
+                                <th>Shots</th>
+                                <th>Avg Vel.</th>
+                                <th>SD</th>
+                                <th>ES</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in recent_sessions %}
+                            <tr class="cursor-pointer" onclick="window.location='/test-sessions/view/{{ session.id }}';" style="cursor:pointer;">
+                                <td>{{ session.test_date.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    {% if session.firearm %}
+                                        {{ session.firearm.make }} {{ session.firearm.model }}
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ session.shot_count }}</td>
+                                <td>{{ "%.2f"|format(session.velocity_avg) if session.velocity_avg else "—" }}</td>
+                                <td>{{ "%.2f"|format(session.standard_deviation) if session.standard_deviation else "—" }}</td>
+                                <td>{{ "%.2f"|format(session.extreme_spread) if session.extreme_spread else "—" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    <p class="mb-2">No test sessions yet.</p>
+                    <a href="/test-sessions/add" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-plus-lg"></i> Create Session
+                    </a>
+                    <a href="/upload" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-upload"></i> Import from Chronograph
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/test-sessions/add" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-lg"></i> New Test Session
+                    </a>
+                    <a href="/upload" class="btn btn-outline-success">
+                        <i class="bi bi-upload"></i> Import Chronograph Data
+                    </a>
+                    <a href="/loads/add" class="btn btn-outline-info">
+                        <i class="bi bi-plus-lg"></i> New Load/Recipe
+                    </a>
+                    <a href="/firearms/add" class="btn btn-outline-warning">
+                        <i class="bi bi-plus-lg"></i> New Firearm
+                    </a>
+                </div>
+                <hr>
+                <h6><i class="bi bi-bar-chart"></i> Summaries</h6>
+                <div class="d-grid gap-2">
+                    <a href="/summaries/by-firearm" class="btn btn-outline-secondary btn-sm">By Firearm</a>
+                    <a href="/summaries/by-bullet" class="btn btn-outline-secondary btn-sm">By Bullet</a>
+                    <a href="/summaries/by-powder" class="btn btn-outline-secondary btn-sm">By Powder</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

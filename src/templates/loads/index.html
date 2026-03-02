@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "macros.html" import delete_button, empty_state, page_header %}
+{% block title %}Loads/Recipes - Reloading Tracker{% endblock %}
+{% block content %}
+{{ page_header("Loads / Recipes", url_for('loads.add'), "Add Load") }}
+<div class="card">
+    <div class="card-body p-0">
+        {% if loads %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Bullet</th>
+                        <th>Powder</th>
+                        <th class="d-none d-md-table-cell">Powder Wt (gr)</th>
+                        <th class="d-none d-md-table-cell">OAL (in)</th>
+                        <th class="d-none d-md-table-cell text-end">Cost/Rd</th>
+                        <th class="text-end" style="width:150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in loads %}
+                    <tr>
+                        <td>{{ l.date_created.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if l.bullet_lot and l.bullet_lot.bullet %}
+                                {{ l.bullet_lot.bullet.manufacturer.name }} {{ l.bullet_lot.bullet.model }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if l.powder_lot and l.powder_lot.powder %}
+                                {{ l.powder_lot.powder.manufacturer.name }} {{ l.powder_lot.powder.name }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="d-none d-md-table-cell">{{ "%.2f"|format(l.powder_weight) if l.powder_weight else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ "%.4f"|format(l.overall_length) if l.overall_length else "—" }}</td>
+                        <td class="d-none d-md-table-cell text-end">{{ "$%.2f"|format(l.cost_per_round) if l.cost_per_round is not none else "—" }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('loads.view', id=l.id) }}" class="btn btn-outline-info btn-action" title="View"><i class="bi bi-eye"></i></a>
+                            <a href="{{ url_for('loads.edit', id=l.id) }}" class="btn btn-outline-primary btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                            {{ delete_button(url_for('loads.delete', id=l.id), "this load") }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            {{ empty_state("loads/recipes", url_for('loads.add')) }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

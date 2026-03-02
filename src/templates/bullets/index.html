@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "macros.html" import delete_button, empty_state, page_header %}
+{% block title %}Bullets - Reloading Tracker{% endblock %}
+{% block content %}
+{{ page_header("Bullets", url_for('bullets.add'), "Add Bullet") }}
+<div class="card">
+    <div class="card-body p-0">
+        {% if bullets %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Manufacturer</th>
+                        <th>Model</th>
+                        <th>Weight (gr)</th>
+                        <th>Caliber</th>
+                        <th class="d-none d-md-table-cell">OAL (in)</th>
+                        <th class="d-none d-md-table-cell">G1 BC</th>
+                        <th class="d-none d-md-table-cell">G7 BC</th>
+                        <th class="text-end" style="width:120px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in bullets %}
+                    <tr>
+                        <td>{{ b.manufacturer.name }}</td>
+                        <td>{{ b.model }}</td>
+                        <td>{{ "%.2f"|format(b.weight) }}</td>
+                        <td>{{ b.caliber.name }}</td>
+                        <td class="d-none d-md-table-cell">{{ "%.4f"|format(b.overall_length) if b.overall_length else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ b.g1_bc if b.g1_bc else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ b.g7_bc if b.g7_bc else "—" }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('bullets.edit', id=b.id) }}" class="btn btn-outline-primary btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                            {{ delete_button(url_for('bullets.delete', id=b.id), b.model) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            {{ empty_state("bullets", url_for('bullets.add')) }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

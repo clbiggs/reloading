@@ -1,34 +1,98 @@
-# Python template repository
+# Reloading Tracker
 
-[![ci](https://github.com/br3ndonland/reloading/workflows/ci/badge.svg)](https://github.com/br3ndonland/reloading/actions/workflows/ci.yml)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+A web application for managing and tracking ammunition reloading data. Built with Flask, SQLite, and Bootstrap 5 — runs in a single Docker container with persistent data storage.
 
-Brendon Smith ([br3ndonland](https://github.com/br3ndonland))
+## Features
 
-## Description
+- **Component Management** — Manage calibers, primer types, manufacturers, bullets, primers, powders, and casings with full CRUD operations
+- **Order Lot Tracking** — Track purchases of bullets, powder, and primers with lot numbers, costs, and quantities
+- **Load/Recipe Builder** — Create and manage load recipes linking specific component order lots with powder weights and measurements
+- **Firearm Registry** — Track firearms with caliber, barrel length, twist rate, and notes
+- **Test Sessions** — Record chronograph test sessions with weather data, shot groups, and individual shot velocities
+- **Chronograph Import** — Upload `.xlsx` exports from the Velocity Pro Radar Chronograph to automatically create test sessions with shot data
+- **Summaries** — View aggregate statistics filtered by firearm, bullet, or powder
+- **Responsive Design** — Works on both desktop and mobile browsers (dark theme)
+- **Density Altitude** — Automatically calculated from temperature, humidity, and pressure
 
-**Welcome!** This is a template repository for Python projects, engineered for use as a [GitHub template repository](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/creating-a-repository-from-a-template). To use the template, click on "Use this template" or browse to [reloading/generate](https://github.com/br3ndonland/reloading/generate). GitHub will create a new repository without the commit history from this one.
+## Quick Start
 
-The `reloading` repo name can be replaced with a one-line terminal command: `git grep -l 'reloading' | xargs sed -i '' 's/reloading/repo-name/g'` (replace `repo-name` with the name of the repository you generate). There may also be a few edits to the _pyproject.toml_ needed. See the [quickstart](#quickstart) section for more.
+### Using Docker Compose (recommended)
 
-Another common approach, especially for Python, is to use [cookiecutter](https://github.com/cookiecutter/cookiecutter). In a cookiecutter repo, the developer adds template variables throughout, like `{{cookiecutter.repo_name}}`. When a user runs `cookiecutter` using the template repository, the template variables are replaced with the information the user provides. This repo is simple enough that I haven't needed to add cookiecutter yet.
-
-[Copier](https://copier.readthedocs.io/en/stable/) and [PyScaffold](https://pyscaffold.org/en/stable/) are similar to cookiecutter, with some additional benefits. I may consider updating this repo for Copier or PyScaffold.
-
-## Quickstart
-
-[Install Hatch](https://hatch.pypa.io/latest/install/), rename the project, then install the project:
-
-```sh
-❯ cd path/to/repo
-# Replace instances of reloading with new repo name
-# In the command below, use your repo name instead of 'repo-name'
-❯ git grep -l 'reloading' | xargs sed -i '' 's|reloading|repo-name|g'
-❯ git grep -l 'template_python' | xargs sed -i '' 's|template_python|repo-name|g'
-# Try running the tests
-❯ hatch run coverage run
+```bash
+docker compose up -d
 ```
 
-## Further information
+The application will be available at **http://localhost:5000**
 
-See [CONTRIBUTING.md](.github/CONTRIBUTING.md).
+### Using Docker directly
+
+```bash
+docker build -t reloading-tracker .
+docker run -d \
+  --name reloading-tracker \
+  -p 5000:5000 \
+  -v reloading-data:/data \
+  -e SECRET_KEY=your-secret-key \
+  reloading-tracker
+```
+
+## Data Persistence
+
+All data is stored in a SQLite database at `/data/reloading.db` inside the container. The Docker Compose configuration mounts a named volume (`reloading-data`) to `/data`, ensuring your data persists across container restarts and upgrades.
+
+## Precision
+
+- **Grain weights** — 2 decimal places (e.g. `147.00 gr`)
+- **Inch lengths and MOA** — 4 decimal places (e.g. `2.8000 in`)
+- **Velocity** — 2 decimal places (e.g. `961.84 fps`)
+
+## Chronograph Import
+
+The application supports importing `.xlsx` files exported from the **Velocity Pro Radar Chronograph**. The import automatically extracts:
+
+- Weather conditions (temperature, humidity, pressure)
+- Individual shot data (velocity, deviation, kinetic energy, power factor, timestamps)
+- Clean bore / cold bore indicators (stored as trace data)
+
+During import, you can optionally associate the session with a firearm, load/recipe, location, and range distance.
+
+## Project Structure
+
+```
+├── Dockerfile
+├── docker-compose.yml
+├── src/
+│   ├── app.py                  # Flask application factory
+│   ├── models.py               # SQLAlchemy database models
+│   ├── database.py             # Database initialization
+│   ├── requirements.txt        # Python dependencies
+│   ├── routes/                 # Route blueprints
+│   │   ├── calibers.py
+│   │   ├── primer_types.py
+│   │   ├── manufacturers.py
+│   │   ├── primers.py
+│   │   ├── bullets.py
+│   │   ├── casings.py
+│   │   ├── powders.py
+│   │   ├── order_lots.py
+│   │   ├── loads.py
+│   │   ├── firearms.py
+│   │   ├── test_sessions.py
+│   │   ├── upload.py
+│   │   └── summaries.py
+│   ├── templates/              # Jinja2 HTML templates
+│   └── utils/
+│       ├── chronograph_parser.py
+│       └── calculations.py
+└── sample_data/
+    └── chronograph_exports/    # Example chronograph export files
+```
+
+## Technology Stack
+
+- **Backend**: Python 3.12, Flask 3.1, SQLAlchemy 2.0
+- **Database**: SQLite
+- **Frontend**: Bootstrap 5.3 (dark theme), Bootstrap Icons
+- **Server**: Gunicorn
+- **Container**: Docker
+

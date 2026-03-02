@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Summary by Firearm - Reloading Tracker{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-crosshair"></i> Summary by Firearm</h2>
+    <a href="{{ url_for('summaries.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Summaries</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <label for="firearm_id" class="form-label">Select Firearm</label>
+                <select class="form-select" id="firearm_id" name="firearm_id" onchange="this.form.submit()">
+                    <option value="">Choose a firearm...</option>
+                    {% for f in firearms %}
+                    <option value="{{ f.id }}" {% if selected_firearm and selected_firearm.id == f.id %}selected{% endif %}>
+                        {{ f.make }} {{ f.model }} ({{ f.caliber.name }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if selected_firearm %}
+    {% if stats %}
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card stat-card primary"><div class="card-body text-center py-2">
+                <div class="stat-value text-primary">{{ stats.session_count }}</div>
+                <div class="text-muted small">Sessions</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card info"><div class="card-body text-center py-2">
+                <div class="stat-value text-info">{{ stats.total_shots }}</div>
+                <div class="text-muted small">Total Shots</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card success"><div class="card-body text-center py-2">
+                <div class="stat-value text-success">{{ "%.2f"|format(stats.avg_velocity) if stats.avg_velocity else "—" }}</div>
+                <div class="text-muted small">Avg Velocity</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card warning"><div class="card-body text-center py-2">
+                <div class="stat-value text-warning">{{ "%.2f"|format(stats.best_sd) if stats.best_sd else "—" }}</div>
+                <div class="text-muted small">Best SD</div>
+            </div></div>
+        </div>
+    </div>
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card stat-card danger"><div class="card-body text-center py-2">
+                <div class="stat-value text-danger">{{ "%.2f"|format(stats.best_es) if stats.best_es else "—" }}</div>
+                <div class="text-muted small">Best ES</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card"><div class="card-body text-center py-2" style="border-left:4px solid #6f42c1;">
+                <div class="stat-value" style="color:#6f42c1;">{{ "%.4f"|format(stats.best_grouping) if stats.best_grouping else "—" }}</div>
+                <div class="text-muted small">Best Group (MOA)</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card"><div class="card-body text-center py-2" style="border-left:4px solid #20c997;">
+                <div class="stat-value" style="color:#20c997;">{{ "%.2f"|format(stats.min_velocity) if stats.min_velocity else "—" }}</div>
+                <div class="text-muted small">Min Velocity</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card"><div class="card-body text-center py-2" style="border-left:4px solid #fd7e14;">
+                <div class="stat-value" style="color:#fd7e14;">{{ "%.2f"|format(stats.max_velocity) if stats.max_velocity else "—" }}</div>
+                <div class="text-muted small">Max Velocity</div>
+            </div></div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header"><h6 class="mb-0">Sessions for {{ selected_firearm.make }} {{ selected_firearm.model }}</h6></div>
+        <div class="card-body p-0">
+            {% if sessions %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Date</th><th>Load</th><th>Shots</th><th>Avg Vel.</th><th>SD</th><th>ES</th><th>Group</th></tr></thead>
+                    <tbody>
+                        {% for s in sessions %}
+                        <tr onclick="window.location='{{ url_for('test_sessions.view', id=s.id) }}';" style="cursor:pointer;">
+                            <td>{{ s.test_date.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                {% if s.load and s.load.bullet_lot and s.load.bullet_lot.bullet %}
+                                    {{ s.load.bullet_lot.bullet.model }}
+                                {% else %}—{% endif %}
+                            </td>
+                            <td>{{ s.shot_count }}</td>
+                            <td>{{ "%.2f"|format(s.velocity_avg) if s.velocity_avg else "—" }}</td>
+                            <td>{{ "%.2f"|format(s.standard_deviation) if s.standard_deviation else "—" }}</td>
+                            <td>{{ "%.2f"|format(s.extreme_spread) if s.extreme_spread else "—" }}</td>
+                            <td>{{ "%.4f"|format(s.grouping_size) if s.grouping_size else "—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-4 text-center text-muted">No test sessions found for this firearm.</div>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+
