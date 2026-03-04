@@ -29,6 +29,7 @@ def create_app():
         test_sessions,
         upload,
         summaries,
+        backup,
     )
 
     app.register_blueprint(calibers.bp)
@@ -44,6 +45,7 @@ def create_app():
     app.register_blueprint(test_sessions.bp)
     app.register_blueprint(upload.bp)
     app.register_blueprint(summaries.bp)
+    app.register_blueprint(backup.bp)
 
     @app.route("/")
     def index():

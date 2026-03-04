@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Backup & Restore - Reloading Tracker{% endblock %}
+{% block content %}
+<h2><i class="bi bi-archive"></i> Backup & Restore</h2>
+
+<div class="row g-3 mt-2">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0"><i class="bi bi-download"></i> Export Data</h6></div>
+            <div class="card-body">
+                <p>Download a complete backup of all your data as a JSON file.</p>
+                <table class="table table-sm mb-3">
+                    <thead>
+                        <tr><th>Table</th><th class="text-end">Records</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Calibers</td><td class="text-end">{{ counts.calibers }}</td></tr>
+                        <tr><td>Primer Types</td><td class="text-end">{{ counts.primer_types }}</td></tr>
+                        <tr><td>Manufacturers</td><td class="text-end">{{ counts.manufacturers }}</td></tr>
+                        <tr><td>Primers</td><td class="text-end">{{ counts.primers }}</td></tr>
+                        <tr><td>Bullets</td><td class="text-end">{{ counts.bullets }}</td></tr>
+                        <tr><td>Casings</td><td class="text-end">{{ counts.casings }}</td></tr>
+                        <tr><td>Powders</td><td class="text-end">{{ counts.powders }}</td></tr>
+                        <tr><td>Order Lots</td><td class="text-end">{{ counts.order_lots }}</td></tr>
+                        <tr><td>Loads/Recipes</td><td class="text-end">{{ counts.loads }}</td></tr>
+                        <tr><td>Firearms</td><td class="text-end">{{ counts.firearms }}</td></tr>
+                        <tr><td>Test Sessions</td><td class="text-end">{{ counts.test_sessions }}</td></tr>
+                        <tr><td>Shots</td><td class="text-end">{{ counts.shots }}</td></tr>
+                    </tbody>
+                </table>
+                <a href="{{ url_for('backup.export') }}" class="btn btn-primary w-100">
+                    <i class="bi bi-download"></i> Download Backup
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0"><i class="bi bi-upload"></i> Restore Data</h6></div>
+            <div class="card-body">
+                <p>Upload a previously exported JSON backup file to restore your data.</p>
+                <div class="alert alert-warning mb-3">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Warning:</strong> Restoring a backup will <strong>replace all existing data</strong> with the contents of the backup file. This action cannot be undone.
+                </div>
+                <form method="POST" action="{{ url_for('backup.import_data') }}" enctype="multipart/form-data" id="importForm">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Backup File (.json)</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".json" required>
+                    </div>
+                    <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#confirmModal">
+                        <i class="bi bi-upload"></i> Restore Backup
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmModalLabel">Confirm Restore</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to restore from a backup? This will <strong>permanently delete all existing data</strong> and replace it with the backup contents.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="document.getElementById('importForm').submit();">
+                    <i class="bi bi-exclamation-triangle"></i> Yes, Restore
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
