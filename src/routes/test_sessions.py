@@ -111,11 +111,15 @@ def add_shot(session_id):
         flash("Velocity must be a number.", "danger")
         return redirect(url_for("test_sessions.view", id=session_id))
 
+    timestamp = _format_timestamp(
+        request.form.get("timestamp", "").strip()
+    )
+
     shot = Shot(
         test_session_id=session_id,
         shot_number=shot_number,
         velocity=velocity_val,
-        timestamp=request.form.get("timestamp", "").strip() or None,
+        timestamp=timestamp or None,
         notes=request.form.get("notes", "").strip() or None,
     )
 
@@ -123,6 +127,8 @@ def add_shot(session_id):
     db.session.add(shot)
     db.session.flush()
 
+    # Expire cached shots collection so it includes the new shot
+    db.session.expire(session, ["shots"])
     _recalculate_shot_stats(session)
     db.session.commit()
 
@@ -289,15 +295,52 @@ def _save_shots(session_id, form):
     _recalculate_shot_stats(session)
 
 
+def _format_timestamp(value):
+    """Format a timestamp string ensuring uppercase AM/PM with a single space.
+
+    Examples: '10:30am' -> '10:30 AM', '2:15 pm' -> '2:15 PM',
+              '10:30  AM' -> '10:30 AM'
+    """
+    if not value:
+        return value
+    import re
+    # Match optional time portion followed by am/pm with optional spacing
+    formatted = re.sub(
+        r'\s*(am|pm)\s*$',
+        lambda m: ' ' + m.group(1).upper(),
+        value.strip(),
+        flags=re.IGNORECASE,
+    )
+    return formatted
+
+
+def _get_bullet_weight(session):
+    """Get bullet weight in grains from the session's load, if available."""
+    if session.load and session.load.bullet_lot and session.load.bullet_lot.bullet:
+        return session.load.bullet_lot.bullet.weight
+    return None
+
+
 def _recalculate_shot_stats(session):
-    """Recalculate deviation for all shots in a session."""
+    """Recalculate deviation, kinetic energy, and power factor for all shots."""
     if not session.shots:
         return
     velocities = [s.velocity for s in session.shots if s.velocity is not None]
     if not velocities:
         return
     avg = sum(velocities) / len(velocities)
+    bullet_weight = _get_bullet_weight(session)
+
     for shot in session.shots:
         if shot.velocity is not None:
             shot.deviation = round(shot.velocity - avg, 2)
+            # Auto-calculate KE and Power Factor if not already set
+            if bullet_weight and shot.kinetic_energy is None:
+                shot.kinetic_energy = round(
+                    (bullet_weight * shot.velocity ** 2) / 450240, 2
+                )
+            if bullet_weight and shot.power_factor is None:
+                shot.power_factor = round(
+                    (bullet_weight * shot.velocity) / 1000, 2
+                )
 

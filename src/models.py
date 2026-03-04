@@ -317,6 +317,24 @@ class TestSession(db.Model):
         return round(variance**0.5, 2)
 
     @property
+    def velocity_min(self):
+        if not self.shots:
+            return None
+        velocities = [s.velocity for s in self.shots if s.velocity is not None]
+        if not velocities:
+            return None
+        return round(min(velocities), 2)
+
+    @property
+    def velocity_max(self):
+        if not self.shots:
+            return None
+        velocities = [s.velocity for s in self.shots if s.velocity is not None]
+        if not velocities:
+            return None
+        return round(max(velocities), 2)
+
+    @property
     def extreme_spread(self):
         if not self.shots:
             return None

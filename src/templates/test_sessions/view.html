@@ -45,6 +45,22 @@
         </div>
     </div>
     <div class="col-6 col-md-3 col-lg-2">
+        <div class="card h-100" style="border-left: 4px solid #20c997;">
+            <div class="card-body text-center py-2">
+                <div class="stat-value" style="color:#20c997;">{{ "%.2f"|format(session.velocity_min) if session.velocity_min else "—" }}</div>
+                <div class="text-muted small">Min Vel (fps)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+        <div class="card h-100" style="border-left: 4px solid #fd7e14;">
+            <div class="card-body text-center py-2">
+                <div class="stat-value" style="color:#fd7e14;">{{ "%.2f"|format(session.velocity_max) if session.velocity_max else "—" }}</div>
+                <div class="text-muted small">Max Vel (fps)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
         <div class="card stat-card info h-100">
             <div class="card-body text-center py-2">
                 <div class="stat-value text-info">{{ "%.4f"|format(session.grouping_size) if session.grouping_size else "—" }}</div>
