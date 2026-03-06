@@ -42,7 +42,7 @@
                     <dt class="col-sm-4">Casing</dt>
                     <dd class="col-sm-8">
                         {% if load.casing_lot and load.casing_lot.casing %}
-                            {{ load.casing_lot.casing.manufacturer.name }} {{ load.casing_lot.casing.name }}
+                            {{ load.casing_lot.casing.name }}
                             <br><small class="text-muted">Lot: {{ load.casing_lot.lot_number or 'N/A' }}</small>
                         {% else %}—{% endif %}
                     </dd>

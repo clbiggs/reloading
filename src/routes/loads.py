@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from models import db, Load, OrderLot
+from models import db, Load, OrderLot, Bullet, Powder, Primer, Caliber
 
 bp = Blueprint("loads", __name__, url_prefix="/loads")
 
@@ -30,8 +30,109 @@ def _get_lot_choices(load=None):
 
 @bp.route("/")
 def index():
-    loads = Load.query.order_by(Load.date_created.desc()).all()
-    return render_template("loads/index.html", loads=loads)
+    # --- Filters ---
+    bullet_id = request.args.get("bullet_id", "").strip()
+    powder_id = request.args.get("powder_id", "").strip()
+    primer_id = request.args.get("primer_id", "").strip()
+    caliber_id = request.args.get("caliber_id", "").strip()
+
+    query = Load.query
+
+    if bullet_id:
+        query = query.join(
+            OrderLot, Load.bullet_lot_id == OrderLot.id
+        ).filter(OrderLot.bullet_id == bullet_id)
+
+    if powder_id:
+        powder_lot = db.aliased(OrderLot)
+        query = query.join(
+            powder_lot, Load.powder_lot_id == powder_lot.id
+        ).filter(powder_lot.powder_id == powder_id)
+
+    if primer_id:
+        primer_lot = db.aliased(OrderLot)
+        query = query.join(
+            primer_lot, Load.primer_lot_id == primer_lot.id
+        ).filter(primer_lot.primer_id == primer_id)
+
+    if caliber_id:
+        if not bullet_id:
+            # Need to join bullet_lot if not already joined
+            bullet_lot_cal = db.aliased(OrderLot)
+            bullet_cal = db.aliased(Bullet)
+            query = query.join(
+                bullet_lot_cal, Load.bullet_lot_id == bullet_lot_cal.id
+            ).join(
+                bullet_cal, bullet_lot_cal.bullet_id == bullet_cal.id
+            ).filter(bullet_cal.caliber_id == caliber_id)
+        else:
+            # Already joined OrderLot for bullet, just join Bullet
+            query = query.join(
+                Bullet, OrderLot.bullet_id == Bullet.id
+            ).filter(Bullet.caliber_id == caliber_id)
+
+    # --- Sorting ---
+    sort = request.args.get("sort", "date").strip()
+    sort_dir = request.args.get("sort_dir", "desc").strip()
+    if sort_dir not in ("asc", "desc"):
+        sort_dir = "desc"
+
+    if sort == "cost":
+        # Cost is a computed property; fetch all then sort in Python
+        loads = query.all()
+        reverse = sort_dir == "desc"
+        loads.sort(
+            key=lambda l: (l.cost_per_round is not None, l.cost_per_round or 0),
+            reverse=reverse,
+        )
+    else:
+        if sort == "powder_weight":
+            order_col = Load.powder_weight
+        else:
+            # Default to date
+            sort = "date"
+            order_col = Load.date_created
+
+        if sort_dir == "asc":
+            query = query.order_by(db.asc(order_col))
+        else:
+            query = query.order_by(db.desc(order_col))
+        loads = query.all()
+
+    # --- Filter dropdown choices ---
+    bullets = (
+        Bullet.query.join(Bullet.manufacturer)
+        .order_by(db.text("manufacturers.name"), Bullet.model)
+        .all()
+    )
+    powders = (
+        Powder.query.join(Powder.manufacturer)
+        .order_by(db.text("manufacturers.name"), Powder.name)
+        .all()
+    )
+    primers = (
+        Primer.query.join(Primer.manufacturer)
+        .order_by(db.text("manufacturers.name"), Primer.model)
+        .all()
+    )
+    calibers = Caliber.query.order_by(Caliber.name).all()
+
+    return render_template(
+        "loads/index.html",
+        loads=loads,
+        bullets=bullets,
+        powders=powders,
+        primers=primers,
+        calibers=calibers,
+        current_filters={
+            "bullet_id": bullet_id,
+            "powder_id": powder_id,
+            "primer_id": primer_id,
+            "caliber_id": caliber_id,
+        },
+        current_sort=sort,
+        current_sort_dir=sort_dir,
+    )
 
 
 @bp.route("/view/<string:id>")

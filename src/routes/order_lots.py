@@ -19,8 +19,75 @@ def _get_components():
 
 @bp.route("/")
 def index():
-    order_lots = OrderLot.query.order_by(OrderLot.is_depleted, OrderLot.order_date.desc()).all()
-    return render_template("order_lots/index.html", order_lots=order_lots)
+    # --- Filters ---
+    component_type = request.args.get("component_type", "").strip()
+    status = request.args.get("status", "").strip()
+    store = request.args.get("store", "").strip()
+
+    query = OrderLot.query
+
+    if component_type in ("bullet", "powder", "primer", "casing"):
+        query = query.filter(OrderLot.component_type == component_type)
+
+    if status == "available":
+        query = query.filter(OrderLot.is_depleted == False)
+    elif status == "depleted":
+        query = query.filter(OrderLot.is_depleted == True)
+
+    if store:
+        query = query.filter(OrderLot.store == store)
+
+    # --- Sorting ---
+    sort = request.args.get("sort", "date").strip()
+    sort_dir = request.args.get("sort_dir", "desc").strip()
+    if sort_dir not in ("asc", "desc"):
+        sort_dir = "desc"
+
+    if sort == "component":
+        # component_display is a computed property; sort in Python
+        order_lots = query.all()
+        reverse = sort_dir == "desc"
+        order_lots.sort(key=lambda ol: ol.component_display.lower(), reverse=reverse)
+    else:
+        sort_map = {
+            "lot_number": OrderLot.lot_number,
+            "quantity": OrderLot.quantity,
+            "cost": OrderLot.total_cost,
+        }
+        if sort in sort_map:
+            order_col = sort_map[sort]
+        else:
+            sort = "date"
+            order_col = OrderLot.order_date
+
+        if sort_dir == "asc":
+            query = query.order_by(db.asc(order_col))
+        else:
+            query = query.order_by(db.desc(order_col))
+        order_lots = query.all()
+
+    # --- Filter dropdown choices ---
+    stores = (
+        db.session.query(OrderLot.store)
+        .filter(OrderLot.store.isnot(None), OrderLot.store != "")
+        .distinct()
+        .order_by(OrderLot.store)
+        .all()
+    )
+    store_list = [s[0] for s in stores]
+
+    return render_template(
+        "order_lots/index.html",
+        order_lots=order_lots,
+        store_list=store_list,
+        current_filters={
+            "component_type": component_type,
+            "status": status,
+            "store": store,
+        },
+        current_sort=sort,
+        current_sort_dir=sort_dir,
+    )
 
 
 @bp.route("/add", methods=["GET", "POST"])
