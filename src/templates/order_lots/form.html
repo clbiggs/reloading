@@ -55,7 +55,7 @@
 const components = {
     bullet: [
         {% for b in bullets %}
-        {id: {{ b.id|tojson }}, name: {{ ("%s %s (%.2fgr)"|format(b.manufacturer.name, b.model, b.weight))|tojson }}},
+        {id: {{ b.id|tojson }}, name: {{ ("%s %s (%s, %.2fgr)"|format(b.manufacturer.name, b.model, b.caliber.name, b.weight))|tojson }}},
         {% endfor %}
     ],
     powder: [

@@ -102,15 +102,23 @@ def index():
                 velocity=round(shot_data["velocity"], 2)
                 if shot_data.get("velocity")
                 else None,
-                deviation=round(shot_data["deviation"], 2)
-                if shot_data.get("deviation")
-                else None,
                 kinetic_energy=shot_data.get("kinetic_energy"),
                 power_factor=shot_data.get("power_factor"),
                 trace_data=shot_data.get("trace_data"),
                 notes=shot_data.get("notes"),
             )
             db.session.add(shot)
+
+        # Recalculate imported shot statistics so deviations use full precision.
+        db.session.flush()
+        velocities = [
+            shot.velocity for shot in session.shots if shot.velocity is not None
+        ]
+        if velocities:
+            avg = sum(velocities) / len(velocities)
+            for shot in session.shots:
+                if shot.velocity is not None:
+                    shot.deviation = round(shot.velocity - avg, 2)
 
         db.session.commit()
         flash(

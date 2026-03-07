@@ -28,7 +28,7 @@
                     <select class="form-select" id="firearm_id" name="firearm_id">
                         <option value="">None</option>
                         {% for f in firearms %}
-                        <option value="{{ f.id }}">{{ f.make }} {{ f.model }} ({{ f.caliber.name }})</option>
+                        <option value="{{ f.id }}" data-caliber-id="{{ f.caliber_id }}">{{ f.make }} {{ f.model }} ({{ f.caliber.name }})</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -37,7 +37,7 @@
                     <select class="form-select" id="load_id" name="load_id">
                         <option value="">None</option>
                         {% for l in loads %}
-                        <option value="{{ l.id }}">
+                        <option value="{{ l.id }}" data-caliber-id="{{ l.bullet_lot.bullet.caliber_id if l.bullet_lot and l.bullet_lot.bullet else '' }}">
                             {% if l.bullet_lot and l.bullet_lot.bullet %}{{ l.bullet_lot.bullet.model }}{% endif %}
                             {% if l.powder_lot and l.powder_lot.powder %} / {{ l.powder_lot.powder.name }}{% endif %}
                             {% if l.powder_weight %} {{ "%.2f"|format(l.powder_weight) }}gr{% endif %}
@@ -74,4 +74,51 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_scripts %}
+<script>
+function filterLoadsByFirearmCaliber() {
+    const firearmSelect = document.getElementById('firearm_id');
+    const loadSelect = document.getElementById('load_id');
+    if (!firearmSelect || !loadSelect) {
+        return;
+    }
+
+    const selectedFirearm = firearmSelect.options[firearmSelect.selectedIndex];
+    const selectedCaliberId = selectedFirearm ? selectedFirearm.dataset.caliberId || '' : '';
+    const currentValue = loadSelect.value;
+    let currentValueVisible = false;
+
+    Array.from(loadSelect.options).forEach((option, index) => {
+        if (index === 0) {
+            option.hidden = false;
+            option.disabled = false;
+            return;
+        }
+
+        const optionCaliberId = option.dataset.caliberId || '';
+        const shouldShow = !selectedCaliberId || !optionCaliberId || optionCaliberId === selectedCaliberId;
+        option.hidden = !shouldShow;
+        option.disabled = !shouldShow;
+
+        if (option.value === currentValue && shouldShow) {
+            currentValueVisible = true;
+        }
+    });
+
+    if (currentValue && !currentValueVisible) {
+        loadSelect.value = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    filterLoadsByFirearmCaliber();
+    const firearmSelect = document.getElementById('firearm_id');
+    if (firearmSelect) {
+        firearmSelect.addEventListener('change', filterLoadsByFirearmCaliber);
+    }
+});
+</script>
+{% endblock %}
+
 

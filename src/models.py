@@ -313,7 +313,7 @@ class TestSession(db.Model):
         if len(velocities) < 2:
             return None
         avg = sum(velocities) / len(velocities)
-        variance = sum((v - avg) ** 2 for v in velocities) / (len(velocities) - 1)
+        variance = sum((v - avg) ** 2 for v in velocities) / len(velocities)
         return round(variance**0.5, 2)
 
     @property
