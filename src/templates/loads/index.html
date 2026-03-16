@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% from "macros.html" import delete_button, empty_state, page_header %}
+{% block title %}Loads/Recipes - Reloading Tracker{% endblock %}
+{% block content %}
+{{ page_header("Loads / Recipes", url_for('loads.add'), "Add Load") }}
+
+{# --- Filter Panel --- #}
+{% set has_filters = current_filters.bullet_id or current_filters.powder_id or current_filters.primer_id or current_filters.caliber_id %}
+<div class="card mb-3">
+    <div class="card-header p-2">
+        <button class="btn btn-sm btn-link text-decoration-none w-100 text-start d-flex justify-content-between align-items-center"
+                type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel"
+                aria-expanded="{{ 'true' if has_filters else 'false' }}">
+            <span>
+                <i class="bi bi-funnel"></i> Filters
+                {% if has_filters %}
+                    <span class="badge bg-primary ms-1">Active</span>
+                {% endif %}
+            </span>
+            <i class="bi bi-chevron-down"></i>
+        </button>
+    </div>
+    <div class="collapse{{ ' show' if has_filters else '' }}" id="filterPanel">
+        <div class="card-body p-3">
+            <form method="GET" action="{{ url_for('loads.index') }}">
+                {# Preserve current sort params #}
+                <input type="hidden" name="sort" value="{{ current_sort }}">
+                <input type="hidden" name="sort_dir" value="{{ current_sort_dir }}">
+                <div class="row g-2">
+                    <div class="col-sm-6 col-md-3">
+                        <label for="filter-caliber" class="form-label form-label-sm mb-1">Caliber</label>
+                        <select name="caliber_id" id="filter-caliber" class="form-select form-select-sm">
+                            <option value="">All Calibers</option>
+                            {% for c in calibers %}
+                                <option value="{{ c.id }}" {{ 'selected' if current_filters.caliber_id == c.id|string }}>{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-md-3">
+                        <label for="filter-bullet" class="form-label form-label-sm mb-1">Bullet</label>
+                        <select name="bullet_id" id="filter-bullet" class="form-select form-select-sm">
+                            <option value="">All Bullets</option>
+                            {% for b in bullets %}
+                                <option value="{{ b.id }}" {{ 'selected' if current_filters.bullet_id == b.id }}>{{ b.manufacturer.name }} {{ b.model }} ({{ "%.0f"|format(b.weight) }}gr)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-md-3">
+                        <label for="filter-powder" class="form-label form-label-sm mb-1">Powder</label>
+                        <select name="powder_id" id="filter-powder" class="form-select form-select-sm">
+                            <option value="">All Powders</option>
+                            {% for p in powders %}
+                                <option value="{{ p.id }}" {{ 'selected' if current_filters.powder_id == p.id }}>{{ p.manufacturer.name }} {{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-md-3">
+                        <label for="filter-primer" class="form-label form-label-sm mb-1">Primer</label>
+                        <select name="primer_id" id="filter-primer" class="form-select form-select-sm">
+                            <option value="">All Primers</option>
+                            {% for p in primers %}
+                                <option value="{{ p.id }}" {{ 'selected' if current_filters.primer_id == p.id }}>{{ p.manufacturer.name }} {{ p.model }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="bi bi-funnel"></i> Apply
+                    </button>
+                    {% if has_filters %}
+                        <a href="{{ url_for('loads.index', sort=current_sort, sort_dir=current_sort_dir) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-x-lg"></i> Clear
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# --- Sort URL Helper Macro --- #}
+{% macro sort_header(label, field, extra_classes="") %}
+    {%- set new_dir = "asc" if current_sort == field and current_sort_dir == "desc" else "desc" -%}
+    <a href="{{ url_for('loads.index',
+            sort=field, sort_dir=new_dir,
+            bullet_id=current_filters.bullet_id,
+            powder_id=current_filters.powder_id,
+            primer_id=current_filters.primer_id,
+            caliber_id=current_filters.caliber_id) }}"
+       class="text-decoration-none text-reset d-inline-flex align-items-center gap-1">
+        {{ label }}
+        {%- if current_sort == field %}
+            <i class="bi bi-sort-{{ 'up' if current_sort_dir == 'asc' else 'down' }}"></i>
+        {%- endif %}
+    </a>
+{% endmacro %}
+
+{# --- Loads Table --- #}
+<div class="card">
+    <div class="card-body p-0">
+        {% if loads %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ sort_header("Date", "date") }}</th>
+                        <th>Bullet</th>
+                        <th>Powder</th>
+                        <th class="d-none d-md-table-cell">{{ sort_header("Powder Wt (gr)", "powder_weight") }}</th>
+                        <th class="d-none d-md-table-cell">OAL (in)</th>
+                        <th class="d-none d-md-table-cell text-end">{{ sort_header("Cost/Rd", "cost") }}</th>
+                        <th class="text-end" style="width:150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in loads %}
+                    <tr>
+                        <td>{{ l.date_created.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if l.bullet_lot and l.bullet_lot.bullet %}
+                                {{ l.bullet_lot.bullet.manufacturer.name }} {{ l.bullet_lot.bullet.model }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if l.powder_lot and l.powder_lot.powder %}
+                                {{ l.powder_lot.powder.manufacturer.name }} {{ l.powder_lot.powder.name }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="d-none d-md-table-cell">{{ "%.2f"|format(l.powder_weight) if l.powder_weight else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ "%.4f"|format(l.overall_length) if l.overall_length else "—" }}</td>
+                        <td class="d-none d-md-table-cell text-end">{{ "$%.2f"|format(l.cost_per_round) if l.cost_per_round is not none else "—" }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('loads.view', id=l.id) }}" class="btn btn-outline-info btn-action" title="View"><i class="bi bi-eye"></i></a>
+                            <a href="{{ url_for('loads.edit', id=l.id) }}" class="btn btn-outline-primary btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                            {{ delete_button(url_for('loads.delete', id=l.id), "this load") }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            {{ empty_state("loads/recipes", url_for('loads.add')) }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

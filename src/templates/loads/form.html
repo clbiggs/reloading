@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "macros.html" import form_actions %}
+{% block title %}{{ "Edit" if load else "Add" }} Load/Recipe - Reloading Tracker{% endblock %}
+{% block content %}
+<h2>{{ "Edit" if load else "Add" }} Load / Recipe</h2>
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="bullet_lot_id" class="form-label">Bullet Order Lot</label>
+                    <select class="form-select" id="bullet_lot_id" name="bullet_lot_id">
+                        <option value="">None</option>
+                        {% for lot in bullet_lots %}
+                        <option value="{{ lot.id }}" {% if load and load.bullet_lot_id == lot.id %}selected{% endif %}>
+                            {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="powder_lot_id" class="form-label">Powder Order Lot</label>
+                    <select class="form-select" id="powder_lot_id" name="powder_lot_id">
+                        <option value="">None</option>
+                        {% for lot in powder_lots %}
+                        <option value="{{ lot.id }}" {% if load and load.powder_lot_id == lot.id %}selected{% endif %}>
+                            {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="powder_weight" class="form-label">Powder Weight (grains)</label>
+                    <input type="number" step="0.01" class="form-control" id="powder_weight" name="powder_weight" value="{{ '%.2f'|format(load.powder_weight) if load and load.powder_weight else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="primer_lot_id" class="form-label">Primer Order Lot</label>
+                    <select class="form-select" id="primer_lot_id" name="primer_lot_id">
+                        <option value="">None</option>
+                        {% for lot in primer_lots %}
+                        <option value="{{ lot.id }}" {% if load and load.primer_lot_id == lot.id %}selected{% endif %}>
+                            {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="casing_lot_id" class="form-label">Casing Order Lot</label>
+                    <select class="form-select" id="casing_lot_id" name="casing_lot_id">
+                        <option value="">None</option>
+                        {% for lot in casing_lots %}
+                        <option value="{{ lot.id }}" {% if load and load.casing_lot_id == lot.id %}selected{% endif %}>
+                            {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="overall_length" class="form-label">Overall Length (in)</label>
+                    <input type="number" step="0.0001" class="form-control" id="overall_length" name="overall_length" value="{{ '%.4f'|format(load.overall_length) if load and load.overall_length else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="cbto" class="form-label">CBTO (in)</label>
+                    <input type="number" step="0.0001" class="form-control" id="cbto" name="cbto" value="{{ '%.4f'|format(load.cbto) if load and load.cbto else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="date_created" class="form-label">Date Created</label>
+                    <input type="date" class="form-control" id="date_created" name="date_created" value="{{ load.date_created.strftime('%Y-%m-%d') if load else '' }}">
+                </div>
+                <div class="col-12">
+                    <label for="notes" class="form-label">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3">{{ load.notes if load and load.notes else '' }}</textarea>
+                </div>
+            </div>
+            {{ form_actions(url_for('loads.index')) }}
+        </form>
+    </div>
+</div>
+{% endblock %}
+

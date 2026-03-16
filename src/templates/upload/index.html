@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Import Chronograph Data - Reloading Tracker{% endblock %}
+{% block content %}
+<h2><i class="bi bi-upload"></i> Import Chronograph Data</h2>
+<p class="text-muted">Upload an .xlsx export file from the Velocity Pro Radar Chronograph to automatically create a test session with shot data.</p>
+
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+            <div class="row g-3">
+                <div class="col-12">
+                    <label for="file" class="form-label">Chronograph Export File (.xlsx) <span class="text-danger">*</span></label>
+                    <input type="file" class="form-control" id="file" name="file" accept=".xlsx" required>
+                    <div class="form-text">Select a .xlsx file exported from the Velocity Pro Radar Chronograph.</div>
+                </div>
+
+                <div class="col-12"><hr><h5>Optional Session Details</h5>
+                    <p class="text-muted small">Weather data and shot data will be imported from the file. You can optionally associate this session with a firearm and load.</p>
+                </div>
+
+                <div class="col-md-4">
+                    <label for="test_date" class="form-label">Test Date/Time</label>
+                    <input type="datetime-local" class="form-control" id="test_date" name="test_date">
+                    <div class="form-text">Leave blank to use current date/time.</div>
+                </div>
+                <div class="col-md-4">
+                    <label for="firearm_id" class="form-label">Firearm</label>
+                    <select class="form-select" id="firearm_id" name="firearm_id">
+                        <option value="">None</option>
+                        {% for f in firearms %}
+                        <option value="{{ f.id }}" data-caliber-id="{{ f.caliber_id }}">{{ f.make }} {{ f.model }} ({{ f.caliber.name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="load_id" class="form-label">Load/Recipe</label>
+                    <select class="form-select" id="load_id" name="load_id">
+                        <option value="">None</option>
+                        {% for l in loads %}
+                        <option value="{{ l.id }}" data-caliber-id="{{ l.bullet_lot.bullet.caliber_id if l.bullet_lot and l.bullet_lot.bullet else '' }}">
+                            {% if l.bullet_lot and l.bullet_lot.bullet %}{{ l.bullet_lot.bullet.model }}{% endif %}
+                            {% if l.powder_lot and l.powder_lot.powder %} / {{ l.powder_lot.powder.name }}{% endif %}
+                            {% if l.powder_weight %} {{ "%.2f"|format(l.powder_weight) }}gr{% endif %}
+                            ({{ l.date_created.strftime('%Y-%m-%d') }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="location" class="form-label">Location</label>
+                    <input type="text" class="form-control" id="location" name="location">
+                </div>
+                <div class="col-md-4">
+                    <label for="range_distance" class="form-label">Range Distance (yds)</label>
+                    <input type="number" step="1" class="form-control" id="range_distance" name="range_distance">
+                </div>
+                <div class="col-md-4">
+                    <label for="grouping_size" class="form-label">Grouping Size (MOA)</label>
+                    <input type="number" step="0.0001" class="form-control" id="grouping_size" name="grouping_size">
+                </div>
+                <div class="col-12">
+                    <label for="notes" class="form-label">Additional Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-upload"></i> Import
+                </button>
+                <a href="{{ url_for('test_sessions.index') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function filterLoadsByFirearmCaliber() {
+    const firearmSelect = document.getElementById('firearm_id');
+    const loadSelect = document.getElementById('load_id');
+    if (!firearmSelect || !loadSelect) {
+        return;
+    }
+
+    const selectedFirearm = firearmSelect.options[firearmSelect.selectedIndex];
+    const selectedCaliberId = selectedFirearm ? selectedFirearm.dataset.caliberId || '' : '';
+    const currentValue = loadSelect.value;
+    let currentValueVisible = false;
+
+    Array.from(loadSelect.options).forEach((option, index) => {
+        if (index === 0) {
+            option.hidden = false;
+            option.disabled = false;
+            return;
+        }
+
+        const optionCaliberId = option.dataset.caliberId || '';
+        const shouldShow = !selectedCaliberId || !optionCaliberId || optionCaliberId === selectedCaliberId;
+        option.hidden = !shouldShow;
+        option.disabled = !shouldShow;
+
+        if (option.value === currentValue && shouldShow) {
+            currentValueVisible = true;
+        }
+    });
+
+    if (currentValue && !currentValueVisible) {
+        loadSelect.value = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    filterLoadsByFirearmCaliber();
+    const firearmSelect = document.getElementById('firearm_id');
+    if (firearmSelect) {
+        firearmSelect.addEventListener('change', filterLoadsByFirearmCaliber);
+    }
+});
+</script>
+{% endblock %}
+
+

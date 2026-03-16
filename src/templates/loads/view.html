@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Load/Recipe Details - Reloading Tracker{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-journal-text"></i> Load / Recipe Details</h2>
+    <div>
+        <a href="{{ url_for('loads.edit', id=load.id) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+        <a href="{{ url_for('loads.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Components</h6></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Bullet</dt>
+                    <dd class="col-sm-8">
+                        {% if load.bullet_lot and load.bullet_lot.bullet %}
+                            {{ load.bullet_lot.bullet.manufacturer.name }} {{ load.bullet_lot.bullet.model }}
+                            ({{ "%.2f"|format(load.bullet_lot.bullet.weight) }}gr)
+                            <br><small class="text-muted">Lot: {{ load.bullet_lot.lot_number or 'N/A' }}</small>
+                        {% else %}—{% endif %}
+                    </dd>
+                    <dt class="col-sm-4">Powder</dt>
+                    <dd class="col-sm-8">
+                        {% if load.powder_lot and load.powder_lot.powder %}
+                            {{ load.powder_lot.powder.manufacturer.name }} {{ load.powder_lot.powder.name }}
+                            <br><small class="text-muted">Lot: {{ load.powder_lot.lot_number or 'N/A' }}</small>
+                        {% else %}—{% endif %}
+                    </dd>
+                    <dt class="col-sm-4">Powder Weight</dt>
+                    <dd class="col-sm-8">{{ "%.2f"|format(load.powder_weight) if load.powder_weight else "—" }} gr</dd>
+                    <dt class="col-sm-4">Primer</dt>
+                    <dd class="col-sm-8">
+                        {% if load.primer_lot and load.primer_lot.primer %}
+                            {{ load.primer_lot.primer.manufacturer.name }} {{ load.primer_lot.primer.model }}
+                            <br><small class="text-muted">Lot: {{ load.primer_lot.lot_number or 'N/A' }}</small>
+                        {% else %}—{% endif %}
+                    </dd>
+                    <dt class="col-sm-4">Casing</dt>
+                    <dd class="col-sm-8">
+                        {% if load.casing_lot and load.casing_lot.casing %}
+                            {{ load.casing_lot.casing.name }}
+                            <br><small class="text-muted">Lot: {{ load.casing_lot.lot_number or 'N/A' }}</small>
+                        {% else %}—{% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Measurements</h6></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">OAL</dt>
+                    <dd class="col-sm-8">{{ "%.4f"|format(load.overall_length) if load.overall_length else "—" }} in</dd>
+                    <dt class="col-sm-4">CBTO</dt>
+                    <dd class="col-sm-8">{{ "%.4f"|format(load.cbto) if load.cbto else "—" }} in</dd>
+                    <dt class="col-sm-4">Date Created</dt>
+                    <dd class="col-sm-8">{{ load.date_created.strftime('%Y-%m-%d') }}</dd>
+                </dl>
+                {% if load.notes %}
+                <hr>
+                <h6>Notes</h6>
+                <p class="mb-0">{{ load.notes }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% set costs = load.cost_breakdown %}
+{% if costs.total is not none %}
+<div class="card mt-3">
+    <div class="card-header"><h6 class="mb-0"><i class="bi bi-currency-dollar"></i> Estimated Cost Per Round</h6></div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr><th>Component</th><th class="text-end">Cost</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Bullet</td>
+                            <td class="text-end">{{ "$%.4f"|format(costs.bullet) if costs.bullet is not none else "—" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Powder ({{ "%.2f"|format(load.powder_weight) if load.powder_weight else "?" }}gr)</td>
+                            <td class="text-end">{{ "$%.4f"|format(costs.powder) if costs.powder is not none else "—" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Primer</td>
+                            <td class="text-end">{{ "$%.4f"|format(costs.primer) if costs.primer is not none else "—" }}</td>
+                        </tr>
+                        <tr>
+                            <td>Casing</td>
+                            <td class="text-end">{{ "$%.4f"|format(costs.casing) if costs.casing is not none else "—" }}</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td>Total Per Round</td>
+                            <td class="text-end">${{ "%.2f"|format(costs.total) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if load.test_sessions %}
+<div class="card mt-3">
+    <div class="card-header"><h6 class="mb-0">Test Sessions Using This Load</h6></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr><th>Date</th><th>Firearm</th><th>Shots</th><th>Avg Vel.</th><th>SD</th><th>ES</th></tr>
+                </thead>
+                <tbody>
+                    {% for s in load.test_sessions %}
+                    <tr onclick="window.location='{{ url_for('test_sessions.view', id=s.id) }}';" style="cursor:pointer;">
+                        <td>{{ s.test_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ s.firearm.make ~ ' ' ~ s.firearm.model if s.firearm else '—' }}</td>
+                        <td>{{ s.shot_count }}</td>
+                        <td>{{ "%.2f"|format(s.velocity_avg) if s.velocity_avg else "—" }}</td>
+                        <td>{{ "%.2f"|format(s.standard_deviation) if s.standard_deviation else "—" }}</td>
+                        <td>{{ "%.2f"|format(s.extreme_spread) if s.extreme_spread else "—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

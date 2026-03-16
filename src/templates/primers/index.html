@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "macros.html" import delete_button, empty_state, page_header %}
+{% block title %}Primers - Reloading Tracker{% endblock %}
+{% block content %}
+{{ page_header("Primers", url_for('primers.add'), "Add Primer") }}
+<div class="card">
+    <div class="card-body p-0">
+        {% if primers %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Manufacturer</th><th>Model</th><th>Type</th><th class="text-end" style="width:120px;">Actions</th></tr></thead>
+                <tbody>
+                    {% for p in primers %}
+                    <tr>
+                        <td>{{ p.manufacturer.name }}</td>
+                        <td>{{ p.model }}</td>
+                        <td>{{ p.primer_type.name }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('primers.edit', id=p.id) }}" class="btn btn-outline-primary btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                            {{ delete_button(url_for('primers.delete', id=p.id), p.model) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            {{ empty_state("primers", url_for('primers.add')) }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

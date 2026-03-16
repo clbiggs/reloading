@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "macros.html" import delete_button, empty_state, page_header %}
+{% block title %}Casings - Reloading Tracker{% endblock %}
+{% block content %}
+{{ page_header("Casings", url_for('casings.add'), "Add Casing") }}
+<div class="card">
+    <div class="card-body p-0">
+        {% if casings %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Primer Type</th>
+                        <th class="d-none d-md-table-cell">Max Trim (in)</th>
+                        <th class="d-none d-md-table-cell">OAL (in)</th>
+                        <th class="text-end" style="width:120px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in casings %}
+                    <tr>
+                        <td>{{ c.name }}</td>
+                        <td>{{ c.primer_type.name }}</td>
+                        <td class="d-none d-md-table-cell">{{ "%.4f"|format(c.max_trim_length) if c.max_trim_length else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ "%.4f"|format(c.overall_length) if c.overall_length else "—" }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('casings.edit', id=c.id) }}" class="btn btn-outline-primary btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                            {{ delete_button(url_for('casings.delete', id=c.id), c.name) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            {{ empty_state("casings", url_for('casings.add')) }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

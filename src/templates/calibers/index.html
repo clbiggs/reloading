@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "macros.html" import delete_button, empty_state, page_header %}
+{% block title %}Calibers - Reloading Tracker{% endblock %}
+{% block content %}
+{{ page_header("Calibers", url_for('calibers.add'), "Add Caliber") }}
+<div class="card">
+    <div class="card-body p-0">
+        {% if calibers %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Name</th><th class="text-end" style="width:120px;">Actions</th></tr></thead>
+                <tbody>
+                    {% for c in calibers %}
+                    <tr>
+                        <td>{{ c.name }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('calibers.edit', id=c.id) }}" class="btn btn-outline-primary btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                            {{ delete_button(url_for('calibers.delete', id=c.id), c.name) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            {{ empty_state("calibers", url_for('calibers.add')) }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "macros.html" import form_actions %}
+{% block title %}{{ "Edit" if powder else "Add" }} Powder - Reloading Tracker{% endblock %}
+{% block content %}
+<h2>{{ "Edit" if powder else "Add" }} Powder</h2>
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="manufacturer_id" class="form-label">Manufacturer <span class="text-danger">*</span></label>
+                    <select class="form-select" id="manufacturer_id" name="manufacturer_id" required>
+                        <option value="">Select manufacturer...</option>
+                        {% for m in manufacturers %}
+                        <option value="{{ m.id }}" {% if powder and powder.manufacturer_id == m.id %}selected{% endif %}>{{ m.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ powder.name if powder else '' }}" required>
+                </div>
+            </div>
+            {{ form_actions(url_for('powders.index')) }}
+        </form>
+    </div>
+</div>
+{% endblock %}
+

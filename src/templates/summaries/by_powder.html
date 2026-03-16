@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Summary by Powder - Reloading Tracker{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-fire"></i> Summary by Powder</h2>
+    <a href="{{ url_for('summaries.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Summaries</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <label for="powder_id" class="form-label">Select Powder</label>
+                <select class="form-select" id="powder_id" name="powder_id" onchange="this.form.submit()">
+                    <option value="">Choose a powder...</option>
+                    {% for p in powders %}
+                    <option value="{{ p.id }}" {% if selected_powder and selected_powder.id == p.id %}selected{% endif %}>
+                        {{ p.manufacturer.name }} {{ p.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if selected_powder %}
+    {% if stats %}
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card stat-card primary"><div class="card-body text-center py-2">
+                <div class="stat-value text-primary">{{ stats.session_count }}</div>
+                <div class="text-muted small">Sessions</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card info"><div class="card-body text-center py-2">
+                <div class="stat-value text-info">{{ stats.total_shots }}</div>
+                <div class="text-muted small">Total Shots</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card success"><div class="card-body text-center py-2">
+                <div class="stat-value text-success">{{ "%.2f"|format(stats.avg_velocity) if stats.avg_velocity else "—" }}</div>
+                <div class="text-muted small">Avg Velocity</div>
+            </div></div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card warning"><div class="card-body text-center py-2">
+                <div class="stat-value text-warning">{{ "%.2f"|format(stats.best_sd) if stats.best_sd else "—" }}</div>
+                <div class="text-muted small">Best SD</div>
+            </div></div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header"><h6 class="mb-0">Sessions using {{ selected_powder.manufacturer.name }} {{ selected_powder.name }}</h6></div>
+        <div class="card-body p-0">
+            {% if sessions %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Date</th><th>Firearm</th><th>Shots</th><th>Avg Vel.</th><th>SD</th><th>ES</th><th>Group</th></tr></thead>
+                    <tbody>
+                        {% for s in sessions %}
+                        <tr onclick="window.location='{{ url_for('test_sessions.view', id=s.id) }}';" style="cursor:pointer;">
+                            <td>{{ s.test_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ s.firearm.make ~ ' ' ~ s.firearm.model if s.firearm else '—' }}</td>
+                            <td>{{ s.shot_count }}</td>
+                            <td>{{ "%.2f"|format(s.velocity_avg) if s.velocity_avg else "—" }}</td>
+                            <td>{{ "%.2f"|format(s.standard_deviation) if s.standard_deviation else "—" }}</td>
+                            <td>{{ "%.2f"|format(s.extreme_spread) if s.extreme_spread else "—" }}</td>
+                            <td>{{ "%.4f"|format(s.grouping_size) if s.grouping_size else "—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-4 text-center text-muted">No test sessions found for this powder.</div>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+

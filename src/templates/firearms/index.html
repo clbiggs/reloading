@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "macros.html" import delete_button, empty_state, page_header %}
+{% block title %}Firearms - Reloading Tracker{% endblock %}
+{% block content %}
+{{ page_header("Firearms", url_for('firearms.add'), "Add Firearm") }}
+<div class="card">
+    <div class="card-body p-0">
+        {% if firearms %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Make</th>
+                        <th>Model</th>
+                        <th>Caliber</th>
+                        <th class="d-none d-md-table-cell">Barrel (in)</th>
+                        <th class="d-none d-md-table-cell">Twist Rate</th>
+                        <th class="text-end" style="width:120px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in firearms %}
+                    <tr>
+                        <td>{{ f.make }}</td>
+                        <td>{{ f.model }}</td>
+                        <td>{{ f.caliber.name }}</td>
+                        <td class="d-none d-md-table-cell">{{ "%.2f"|format(f.barrel_length) if f.barrel_length else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ f.twist_rate or "—" }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('firearms.edit', id=f.id) }}" class="btn btn-outline-primary btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                            {{ delete_button(url_for('firearms.delete', id=f.id), f.make ~ ' ' ~ f.model) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            {{ empty_state("firearms", url_for('firearms.add')) }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

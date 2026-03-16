@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "macros.html" import form_actions %}
+{% block title %}{{ "Edit" if primer else "Add" }} Primer - Reloading Tracker{% endblock %}
+{% block content %}
+<h2>{{ "Edit" if primer else "Add" }} Primer</h2>
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label for="manufacturer_id" class="form-label">Manufacturer <span class="text-danger">*</span></label>
+                <select class="form-select" id="manufacturer_id" name="manufacturer_id" required>
+                    <option value="">Select manufacturer...</option>
+                    {% for m in manufacturers %}
+                    <option value="{{ m.id }}" {% if primer and primer.manufacturer_id == m.id %}selected{% endif %}>{{ m.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="model" class="form-label">Model <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="model" name="model" value="{{ primer.model if primer else '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="primer_type_id" class="form-label">Primer Type <span class="text-danger">*</span></label>
+                <select class="form-select" id="primer_type_id" name="primer_type_id" required>
+                    <option value="">Select primer type...</option>
+                    {% for pt in primer_types %}
+                    <option value="{{ pt.id }}" {% if primer and primer.primer_type_id == pt.id %}selected{% endif %}>{{ pt.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {{ form_actions(url_for('primers.index')) }}
+        </form>
+    </div>
+</div>
+{% endblock %}
+

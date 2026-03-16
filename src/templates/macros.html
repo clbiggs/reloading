@@ -1,0 +1,41 @@
+{% macro delete_button(action, name="this item") %}
+<form method="POST" action="{{ action }}" class="d-inline"
+      onsubmit="return confirm('Are you sure you want to delete {{ name }}?');">
+    <button type="submit" class="btn btn-danger btn-action" title="Delete">
+        <i class="bi bi-trash"></i>
+    </button>
+</form>
+{% endmacro %}
+
+{% macro empty_state(entity_name, add_url) %}
+<div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox display-4"></i>
+    <p class="mt-2">No {{ entity_name }} found.</p>
+    <a href="{{ add_url }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> Add {{ entity_name }}
+    </a>
+</div>
+{% endmacro %}
+
+{% macro page_header(title, add_url=None, add_label="Add") %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">{{ title }}</h2>
+    {% if add_url %}
+    <a href="{{ add_url }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> <span class="d-none d-sm-inline">{{ add_label }}</span>
+    </a>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro form_actions(cancel_url) %}
+<div class="d-flex gap-2 mt-3">
+    <button type="submit" class="btn btn-primary">
+        <i class="bi bi-check-lg"></i> Save
+    </button>
+    <a href="{{ cancel_url }}" class="btn btn-secondary">
+        <i class="bi bi-x-lg"></i> Cancel
+    </a>
+</div>
+{% endmacro %}
+

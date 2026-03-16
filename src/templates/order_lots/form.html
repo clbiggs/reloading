@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% from "macros.html" import form_actions %}
+{% block title %}{{ "Edit" if order_lot else "Add" }} Order Lot - Reloading Tracker{% endblock %}
+{% block content %}
+<h2>{{ "Edit" if order_lot else "Add" }} Order Lot</h2>
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="order_date" class="form-label">Order Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="order_date" name="order_date" value="{{ order_lot.order_date.strftime('%Y-%m-%d') if order_lot else '' }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="store" class="form-label">Store</label>
+                    <input type="text" class="form-control" id="store" name="store" value="{{ order_lot.store if order_lot and order_lot.store else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="lot_number" class="form-label">Lot Number</label>
+                    <input type="text" class="form-control" id="lot_number" name="lot_number" value="{{ order_lot.lot_number if order_lot and order_lot.lot_number else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="quantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control" id="quantity" name="quantity" value="{{ order_lot.quantity if order_lot else '' }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="total_cost" class="form-label">Total Cost ($)</label>
+                    <input type="number" step="0.01" class="form-control" id="total_cost" name="total_cost" value="{{ '%.2f'|format(order_lot.total_cost) if order_lot and order_lot.total_cost else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="component_type" class="form-label">Component Type <span class="text-danger">*</span></label>
+                    <select class="form-select" id="component_type" name="component_type" required onchange="updateComponentSelect()">
+                        <option value="">Select type...</option>
+                        <option value="bullet" {% if order_lot and order_lot.component_type == 'bullet' %}selected{% endif %}>Bullet</option>
+                        <option value="powder" {% if order_lot and order_lot.component_type == 'powder' %}selected{% endif %}>Powder</option>
+                        <option value="primer" {% if order_lot and order_lot.component_type == 'primer' %}selected{% endif %}>Primer</option>
+                        <option value="casing" {% if order_lot and order_lot.component_type == 'casing' %}selected{% endif %}>Casing</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label for="component_id" class="form-label">Component <span class="text-danger">*</span></label>
+                    <select class="form-select" id="component_id" name="component_id" required>
+                        <option value="">Select component type first...</option>
+                    </select>
+                </div>
+            </div>
+            {{ form_actions(url_for('order_lots.index')) }}
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const components = {
+    bullet: [
+        {% for b in bullets %}
+        {id: {{ b.id|tojson }}, name: {{ ("%s %s (%s, %.2fgr)"|format(b.manufacturer.name, b.model, b.caliber.name, b.weight))|tojson }}},
+        {% endfor %}
+    ],
+    powder: [
+        {% for p in powders %}
+        {id: {{ p.id|tojson }}, name: {{ ("%s %s"|format(p.manufacturer.name, p.name))|tojson }}},
+        {% endfor %}
+    ],
+    primer: [
+        {% for p in primers %}
+        {id: {{ p.id|tojson }}, name: {{ ("%s %s"|format(p.manufacturer.name, p.model))|tojson }}},
+        {% endfor %}
+    ],
+    casing: [
+        {% for c in casings %}
+        {id: {{ c.id|tojson }}, name: {{ c.name|tojson }}},
+        {% endfor %}
+    ]
+};
+
+const currentComponentId = {{ (order_lot.bullet_id or order_lot.powder_id or order_lot.primer_id or order_lot.casing_id or '' if order_lot else '')|tojson }};
+
+function updateComponentSelect() {
+    const type = document.getElementById('component_type').value;
+    const select = document.getElementById('component_id');
+    select.innerHTML = '<option value="">Select component...</option>';
+    if (type && components[type]) {
+        components[type].forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            if (c.id === currentComponentId) opt.selected = true;
+            select.appendChild(opt);
+        });
+    }
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', updateComponentSelect);
+</script>
+{% endblock %}
+
