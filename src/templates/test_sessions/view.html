@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% from "macros.html" import delete_button %}
 {% block title %}Test Session Details - Reloading Tracker{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2><i class="bi bi-clipboard-data"></i> Test Session</h2>
@@ -128,6 +131,22 @@
 </div>
 {% endif %}
 
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-graph-up"></i> Shot Metrics</h6>
+        <span class="text-muted small">Click legend items to show or hide datasets</span>
+    </div>
+    <div class="card-body">
+        {% if session.shots %}
+            <div style="height: 340px;">
+                <canvas id="shotMetricsChart"></canvas>
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">Add shots to view the chart.</p>
+        {% endif %}
+    </div>
+</div>
+
 <!-- Shot Data -->
 <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -205,4 +224,135 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_scripts %}
+{% if session.shots %}
+<script>
+const shotChartLabels = [
+    {% for shot in session.shots %}
+    {{ ('Shot ' ~ shot.shot_number)|tojson }},
+    {% endfor %}
+];
+
+const shotMetricsDatasets = [
+    {
+        label: 'Velocity',
+        data: [{% for shot in session.shots %}{{ shot.velocity if shot.velocity is not none else 'null' }},{% endfor %}],
+        borderColor: '#0d6efd',
+        backgroundColor: 'rgba(13, 110, 253, 0.2)',
+        tension: 0.25,
+        yAxisID: 'y',
+    },
+    {
+        label: 'Average Velocity',
+        data: [{% for shot in session.shots %}{{ session.velocity_avg if session.velocity_avg is not none else 'null' }},{% endfor %}],
+        borderColor: '#6f42c1',
+        backgroundColor: 'rgba(111, 66, 193, 0.15)',
+        borderDash: [6, 6],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        tension: 0,
+        yAxisID: 'y',
+    },
+    {
+        label: 'Deviation',
+        data: [{% for shot in session.shots %}{{ shot.deviation if shot.deviation is not none else 'null' }},{% endfor %}],
+        borderColor: '#dc3545',
+        backgroundColor: 'rgba(220, 53, 69, 0.2)',
+        tension: 0.25,
+        yAxisID: 'y1',
+    },
+    {
+        label: 'Kinetic Energy',
+        data: [{% for shot in session.shots %}{{ shot.kinetic_energy if shot.kinetic_energy is not none else 'null' }},{% endfor %}],
+        borderColor: '#198754',
+        backgroundColor: 'rgba(25, 135, 84, 0.2)',
+        tension: 0.25,
+        yAxisID: 'y2',
+    },
+    {
+        label: 'Power Factor',
+        data: [{% for shot in session.shots %}{{ shot.power_factor if shot.power_factor is not none else 'null' }},{% endfor %}],
+        borderColor: '#ffc107',
+        backgroundColor: 'rgba(255, 193, 7, 0.2)',
+        tension: 0.25,
+        yAxisID: 'y2',
+    },
+];
+
+const shotChartCanvas = document.getElementById('shotMetricsChart');
+if (shotChartCanvas) {
+    new Chart(shotChartCanvas, {
+        type: 'line',
+        data: {
+            labels: shotChartLabels,
+            datasets: shotMetricsDatasets,
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                },
+                tooltip: {
+                    callbacks: {
+                        label(context) {
+                            if (context.raw === null) {
+                                return `${context.dataset.label}: —`;
+                            }
+                            return `${context.dataset.label}: ${context.raw}`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Shot Number',
+                    },
+                },
+                y: {
+                    beginAtZero: false,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Velocity (fps)',
+                    },
+                },
+                y1: {
+                    beginAtZero: false,
+                    position: 'right',
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                    title: {
+                        display: true,
+                        text: 'Deviation (fps)',
+                    },
+                },
+                y2: {
+                    beginAtZero: false,
+                    position: 'right',
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                    title: {
+                        display: true,
+                        text: 'KE / PF',
+                    },
+                },
+            },
+        },
+    });
+}
+</script>
+{% endif %}
+{% endblock %}
+
 
