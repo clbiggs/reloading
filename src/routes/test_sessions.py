@@ -11,8 +11,79 @@ bp = Blueprint("test_sessions", __name__, url_prefix="/test-sessions")
 
 @bp.route("/")
 def index():
-    sessions = TestSession.query.order_by(TestSession.test_date.desc()).all()
-    return render_template("test_sessions/index.html", sessions=sessions)
+    firearm_id = request.args.get("firearm_id", "").strip()
+    date_from = request.args.get("date_from", "").strip()
+    date_to = request.args.get("date_to", "").strip()
+    location = request.args.get("location", "").strip()
+
+    query = TestSession.query
+
+    if firearm_id:
+        query = query.filter(TestSession.firearm_id == firearm_id)
+
+    if date_from:
+        try:
+            start_date = datetime.strptime(date_from, "%Y-%m-%d")
+            query = query.filter(TestSession.test_date >= start_date)
+        except ValueError:
+            flash("Invalid start date filter.", "danger")
+
+    if date_to:
+        try:
+            end_date = datetime.strptime(date_to, "%Y-%m-%d")
+            query = query.filter(TestSession.test_date < end_date.replace(hour=23, minute=59, second=59, microsecond=999999))
+        except ValueError:
+            flash("Invalid end date filter.", "danger")
+
+    if location:
+        query = query.filter(TestSession.location == location)
+
+    sort = request.args.get("sort", "date").strip()
+    sort_dir = request.args.get("sort_dir", "desc").strip()
+    if sort_dir not in ("asc", "desc"):
+        sort_dir = "desc"
+
+    sort_map = {
+        "date": TestSession.test_date,
+        "location": TestSession.location,
+        "grouping_size": TestSession.grouping_size,
+    }
+    if sort in sort_map:
+        order_col = sort_map[sort]
+        if sort_dir == "asc":
+            query = query.order_by(db.asc(order_col))
+        else:
+            query = query.order_by(db.desc(order_col))
+        sessions = query.all()
+    else:
+        sort = "date"
+        query = query.order_by(db.desc(TestSession.test_date))
+        sessions = query.all()
+
+    firearms = Firearm.query.order_by(Firearm.make, Firearm.model).all()
+    locations = (
+        db.session.query(TestSession.location)
+        .filter(TestSession.location.isnot(None), TestSession.location != "")
+        .distinct()
+        .order_by(TestSession.location)
+        .all()
+    )
+    location_list = [item[0] for item in locations]
+
+    return render_template(
+        "test_sessions/index.html",
+        sessions=sessions,
+        firearms=firearms,
+        location_list=location_list,
+        current_filters={
+            "firearm_id": firearm_id,
+            "date_from": date_from,
+            "date_to": date_to,
+            "location": location,
+        },
+        current_sort=sort,
+        current_sort_dir=sort_dir,
+    )
 
 
 @bp.route("/view/<string:id>")
