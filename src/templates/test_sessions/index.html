@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% from "macros.html" import delete_button, empty_state, page_header %}
 {% block title %}Test Sessions - Reloading Tracker{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
 {% block content %}
 {{ page_header("Test Sessions", url_for('test_sessions.add'), "Add Session") }}
 
@@ -86,6 +89,22 @@
     </a>
 {% endmacro %}
 
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-graph-up"></i> Session Metrics</span>
+        <span class="text-muted small">Click legend items to show or hide datasets</span>
+    </div>
+    <div class="card-body">
+        {% if sessions %}
+            <div style="height: 360px;">
+                <canvas id="testSessionsChart"></canvas>
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">Apply filters or add sessions to view the chart.</p>
+        {% endif %}
+    </div>
+</div>
+
 <div class="card">
     <div class="card-body p-0">
         {% if sessions %}
@@ -137,4 +156,119 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_scripts %}
+{% if sessions %}
+<script>
+const sessionChartLabels = [
+    {% for s in sessions %}
+    {{ (s.test_date.strftime('%Y-%m-%d') ~ ' - ' ~ (s.firearm.make ~ ' ' ~ s.firearm.model if s.firearm else 'No Firearm'))|tojson }},
+    {% endfor %}
+];
+
+const testSessionDatasets = [
+    {
+        label: 'Shots Count',
+        data: [{% for s in sessions %}{{ s.shot_count }},{% endfor %}],
+        borderColor: '#0d6efd',
+        backgroundColor: 'rgba(13, 110, 253, 0.2)',
+        tension: 0.25,
+        yAxisID: 'y',
+    },
+    {
+        label: 'Average Velocity',
+        data: [{% for s in sessions %}{{ s.velocity_avg if s.velocity_avg is not none else 'null' }},{% endfor %}],
+        borderColor: '#198754',
+        backgroundColor: 'rgba(25, 135, 84, 0.2)',
+        tension: 0.25,
+        yAxisID: 'y1',
+    },
+    {
+        label: 'Standard Deviation',
+        data: [{% for s in sessions %}{{ s.standard_deviation if s.standard_deviation is not none else 'null' }},{% endfor %}],
+        borderColor: '#ffc107',
+        backgroundColor: 'rgba(255, 193, 7, 0.2)',
+        tension: 0.25,
+        yAxisID: 'y',
+    },
+    {
+        label: 'Extreme Spread',
+        data: [{% for s in sessions %}{{ s.extreme_spread if s.extreme_spread is not none else 'null' }},{% endfor %}],
+        borderColor: '#dc3545',
+        backgroundColor: 'rgba(220, 53, 69, 0.2)',
+        tension: 0.25,
+        yAxisID: 'y',
+    },
+    {
+        label: 'Group MOA',
+        data: [{% for s in sessions %}{{ s.grouping_size if s.grouping_size is not none else 'null' }},{% endfor %}],
+        borderColor: '#0dcaf0',
+        backgroundColor: 'rgba(13, 202, 240, 0.2)',
+        tension: 0.25,
+        yAxisID: 'y',
+    },
+];
+
+const chartCanvas = document.getElementById('testSessionsChart');
+if (chartCanvas) {
+    new Chart(chartCanvas, {
+        type: 'line',
+        data: {
+            labels: sessionChartLabels,
+            datasets: testSessionDatasets,
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                },
+                tooltip: {
+                    callbacks: {
+                        label(context) {
+                            if (context.raw === null) {
+                                return `${context.dataset.label}: —`;
+                            }
+                            return `${context.dataset.label}: ${context.raw}`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 20,
+                    },
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Shots / Spread / MOA',
+                    },
+                },
+                y1: {
+                    position: 'right',
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                    title: {
+                        display: true,
+                        text: 'Velocity (fps)',
+                    },
+                },
+            },
+        },
+    });
+}
+</script>
+{% endif %}
+{% endblock %}
+
 
