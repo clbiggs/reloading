@@ -1,10 +1,36 @@
 """Routes for summary views."""
 
 from flask import Blueprint, render_template, request
-from models import db, TestSession, Shot, Firearm, Load, Bullet, Powder, OrderLot
-from sqlalchemy import func
+from models import db, Firearm, Load, Bullet, Powder, OrderLot, TestSession
 
 bp = Blueprint("summaries", __name__, url_prefix="/summaries")
+
+
+def _get_sorted_sessions(query):
+    """Apply main test sessions page sort options to a summary session query."""
+    sort = request.args.get("sort", "date").strip()
+    sort_dir = request.args.get("sort_dir", "desc").strip()
+    if sort_dir not in ("asc", "desc"):
+        sort_dir = "desc"
+
+    sort_map = {
+        "date": TestSession.test_date,
+        "location": TestSession.location,
+        "grouping_size": TestSession.grouping_size,
+    }
+
+    if sort in sort_map:
+        order_col = sort_map[sort]
+        if sort_dir == "asc":
+            query = query.order_by(db.asc(order_col))
+        else:
+            query = query.order_by(db.desc(order_col))
+    else:
+        sort = "date"
+        sort_dir = "desc"
+        query = query.order_by(db.desc(TestSession.test_date))
+
+    return query.all(), sort, sort_dir
 
 
 @bp.route("/")
@@ -21,14 +47,14 @@ def by_firearm():
     selected_firearm = None
     sessions = []
     stats = {}
+    current_sort = "date"
+    current_sort_dir = "desc"
 
     if firearm_id:
         selected_firearm = Firearm.query.get(firearm_id)
         if selected_firearm:
-            sessions = (
+            sessions, current_sort, current_sort_dir = _get_sorted_sessions(
                 TestSession.query.filter_by(firearm_id=firearm_id)
-                .order_by(TestSession.test_date.desc())
-                .all()
             )
             stats = _calculate_session_stats(sessions)
 
@@ -38,6 +64,8 @@ def by_firearm():
         selected_firearm=selected_firearm,
         sessions=sessions,
         stats=stats,
+        current_sort=current_sort,
+        current_sort_dir=current_sort_dir,
     )
 
 
@@ -50,6 +78,8 @@ def by_bullet():
     selected_bullet = None
     sessions = []
     stats = {}
+    current_sort = "date"
+    current_sort_dir = "desc"
 
     if bullet_id:
         selected_bullet = Bullet.query.get(bullet_id)
@@ -69,10 +99,8 @@ def by_bullet():
                     ).all()
                 ]
                 if load_ids:
-                    sessions = (
+                    sessions, current_sort, current_sort_dir = _get_sorted_sessions(
                         TestSession.query.filter(TestSession.load_id.in_(load_ids))
-                        .order_by(TestSession.test_date.desc())
-                        .all()
                     )
             stats = _calculate_session_stats(sessions)
 
@@ -82,6 +110,8 @@ def by_bullet():
         selected_bullet=selected_bullet,
         sessions=sessions,
         stats=stats,
+        current_sort=current_sort,
+        current_sort_dir=current_sort_dir,
     )
 
 
@@ -94,6 +124,8 @@ def by_powder():
     selected_powder = None
     sessions = []
     stats = {}
+    current_sort = "date"
+    current_sort_dir = "desc"
 
     if powder_id:
         selected_powder = Powder.query.get(powder_id)
@@ -113,10 +145,8 @@ def by_powder():
                     ).all()
                 ]
                 if load_ids:
-                    sessions = (
+                    sessions, current_sort, current_sort_dir = _get_sorted_sessions(
                         TestSession.query.filter(TestSession.load_id.in_(load_ids))
-                        .order_by(TestSession.test_date.desc())
-                        .all()
                     )
             stats = _calculate_session_stats(sessions)
 
@@ -126,6 +156,8 @@ def by_powder():
         selected_powder=selected_powder,
         sessions=sessions,
         stats=stats,
+        current_sort=current_sort,
+        current_sort_dir=current_sort_dir,
     )
 
 
