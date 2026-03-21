@@ -89,7 +89,13 @@ def index():
 @bp.route("/view/<string:id>")
 def view(id):
     session = TestSession.query.get_or_404(id)
-    return render_template("test_sessions/view.html", session=session)
+    view_mode = request.args.get("view", "full").strip()
+    session_view = _build_session_view(session, view_mode)
+    return render_template(
+        "test_sessions/view.html",
+        session=session,
+        session_view=session_view,
+    )
 
 
 @bp.route("/add", methods=["GET", "POST"])
@@ -389,6 +395,116 @@ def _get_bullet_weight(session):
     """Get bullet weight in grains from the session's load, if available."""
     if session.load and session.load.bullet_lot and session.load.bullet_lot.bullet:
         return session.load.bullet_lot.bullet.weight
+
+
+def _calculate_velocity_metrics(shots):
+    """Calculate aggregate shot metrics for a session view."""
+    velocities = [shot.velocity for shot in shots if shot.velocity is not None]
+    if not velocities:
+        return {
+            "shot_count": len(shots),
+            "velocity_avg": None,
+            "standard_deviation": None,
+            "velocity_min": None,
+            "velocity_max": None,
+            "extreme_spread": None,
+        }
+
+    avg = sum(velocities) / len(velocities)
+    variance = None
+    if len(velocities) >= 2:
+        variance = sum((velocity - avg) ** 2 for velocity in velocities) / len(velocities)
+
+    return {
+        "shot_count": len(shots),
+        "velocity_avg": round(avg, 2),
+        "standard_deviation": round(variance**0.5, 2) if variance is not None else None,
+        "velocity_min": round(min(velocities), 2),
+        "velocity_max": round(max(velocities), 2),
+        "extreme_spread": round(max(velocities) - min(velocities), 2),
+    }
+
+
+def _get_excluded_shot_ids(shots):
+    """Return the slowest and fastest shot ids to exclude from calculations."""
+    velocity_shots = [shot for shot in shots if shot.velocity is not None]
+    if len(velocity_shots) < 2:
+        return set()
+
+    sorted_shots = sorted(velocity_shots, key=lambda shot: (shot.velocity, shot.shot_number))
+    return {sorted_shots[0].id, sorted_shots[-1].id}
+
+
+def _build_metric_deltas(current_metrics, full_metrics):
+    """Build metric deltas between the current and full session views."""
+    precision_map = {
+        "shot_count": 0,
+        "velocity_avg": 2,
+        "standard_deviation": 2,
+        "velocity_min": 2,
+        "velocity_max": 2,
+        "extreme_spread": 2,
+    }
+    deltas = {}
+    for key, precision in precision_map.items():
+        current_value = current_metrics.get(key)
+        full_value = full_metrics.get(key)
+        if current_value is None or full_value is None:
+            deltas[key] = None
+            continue
+        delta = current_value - full_value
+        deltas[key] = int(delta) if precision == 0 else round(delta, precision)
+    return deltas
+
+
+def _build_session_view(session, view_mode):
+    """Build the display model for the full or excluded-shot session view."""
+    shots = list(session.shots)
+    can_exclude = len(shots) > 5
+    is_excluded_mode = view_mode == "excluded" and can_exclude
+    excluded_shot_ids = _get_excluded_shot_ids(shots) if is_excluded_mode else set()
+    included_shots = [shot for shot in shots if shot.id not in excluded_shot_ids]
+
+    full_metrics = _calculate_velocity_metrics(shots)
+    current_metrics = (
+        _calculate_velocity_metrics(included_shots)
+        if is_excluded_mode
+        else dict(full_metrics)
+    )
+    current_metrics["grouping_size"] = session.grouping_size
+    current_metrics["range_distance"] = session.range_distance
+    full_metrics["grouping_size"] = session.grouping_size
+    full_metrics["range_distance"] = session.range_distance
+
+    current_avg = current_metrics.get("velocity_avg")
+    shot_rows = []
+    excluded_shot_numbers = []
+    for shot in shots:
+        is_excluded = shot.id in excluded_shot_ids
+        if is_excluded:
+            excluded_shot_numbers.append(shot.shot_number)
+        deviation = None
+        if shot.velocity is not None and current_avg is not None and not is_excluded:
+            deviation = round(shot.velocity - current_avg, 2)
+        shot_rows.append(
+            {
+                "shot": shot,
+                "is_excluded": is_excluded,
+                "deviation": deviation,
+            }
+        )
+
+    return {
+        "mode": "excluded" if is_excluded_mode else "full",
+        "is_excluded_mode": is_excluded_mode,
+        "can_exclude": can_exclude,
+        "shots": shot_rows,
+        "metrics": current_metrics,
+        "full_metrics": full_metrics,
+        "deltas": _build_metric_deltas(current_metrics, full_metrics),
+        "excluded_shot_numbers": excluded_shot_numbers,
+    }
+
     return None
 
 
