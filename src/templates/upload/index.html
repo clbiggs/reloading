@@ -1,30 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Import Chronograph Data - Reloading Tracker{% endblock %}
+{% block title %}Upload Chronograph Data - Reloading Tracker{% endblock %}
 {% block content %}
-<h2><i class="bi bi-upload"></i> Import Chronograph Data</h2>
-<p class="text-muted">Upload an .xlsx export file from the Velocity Pro Radar Chronograph to automatically create a test session with shot data.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-upload"></i> Upload Chronograph Data</h2>
+    <a href="{{ url_for('test_sessions.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
 
-<div class="card mt-3">
+<div class="card">
     <div class="card-body">
         <form method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="file" class="form-label">Chronograph Export File (.xlsx) <span class="text-danger">*</span></label>
+                <input type="file" class="form-control" id="file" name="file" accept=".xlsx" required>
+                <div class="form-text">Upload a Velocity Pro Radar Chronograph export file</div>
+            </div>
+
             <div class="row g-3">
-                <div class="col-12">
-                    <label for="file" class="form-label">Chronograph Export File (.xlsx) <span class="text-danger">*</span></label>
-                    <input type="file" class="form-control" id="file" name="file" accept=".xlsx" required>
-                    <div class="form-text">Select a .xlsx file exported from the Velocity Pro Radar Chronograph.</div>
-                </div>
-
-                <div class="col-12"><hr><h5>Optional Session Details</h5>
-                    <p class="text-muted small">Weather data and shot data will be imported from the file. You can optionally associate this session with a firearm and load.</p>
-                </div>
-
-                <div class="col-md-4">
-                    <label for="test_date" class="form-label">Test Date/Time</label>
-                    <input type="datetime-local" class="form-control" id="test_date" name="test_date">
-                    <div class="form-text">Leave blank to use current date/time.</div>
-                </div>
-                <div class="col-md-4">
-                    <label for="firearm_id" class="form-label">Firearm</label>
+                <div class="col-md-6">
+                    <label for="firearm_id" class="form-label">Associate with Firearm (optional)</label>
                     <select class="form-select" id="firearm_id" name="firearm_id">
                         <option value="">None</option>
                         {% for f in firearms %}
@@ -32,13 +25,15 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label for="load_id" class="form-label">Load/Recipe</label>
+                <div class="col-md-6">
+                    <label for="load_id" class="form-label">Associate with Load/Recipe (optional)</label>
                     <select class="form-select" id="load_id" name="load_id">
                         <option value="">None</option>
                         {% for l in loads %}
                         <option value="{{ l.id }}" data-caliber-id="{{ l.bullet_lot.bullet.caliber_id if l.bullet_lot and l.bullet_lot.bullet else '' }}">
-                            {% if l.bullet_lot and l.bullet_lot.bullet %}{{ l.bullet_lot.bullet.model }}{% endif %}
+                            {% if l.bullet_lot and l.bullet_lot.bullet %}
+                                {{ l.bullet_lot.bullet.model }}{% if l.bullet_lot.bullet.weight %} {{ "%.2f"|format(l.bullet_lot.bullet.weight) }}gr{% endif %}
+                            {% endif %}
                             {% if l.powder_lot and l.powder_lot.powder %} / {{ l.powder_lot.powder.name }}{% endif %}
                             {% if l.powder_weight %} {{ "%.2f"|format(l.powder_weight) }}gr{% endif %}
                             ({{ l.date_created.strftime('%Y-%m-%d') }})
@@ -46,28 +41,23 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label for="location" class="form-label">Location</label>
+                <div class="col-md-6">
+                    <label for="location" class="form-label">Location (optional)</label>
                     <input type="text" class="form-control" id="location" name="location">
                 </div>
-                <div class="col-md-4">
-                    <label for="range_distance" class="form-label">Range Distance (yds)</label>
-                    <input type="number" step="1" class="form-control" id="range_distance" name="range_distance">
-                </div>
-                <div class="col-md-4">
-                    <label for="grouping_size" class="form-label">Grouping Size (MOA)</label>
-                    <input type="number" step="0.0001" class="form-control" id="grouping_size" name="grouping_size">
-                </div>
-                <div class="col-12">
-                    <label for="notes" class="form-label">Additional Notes</label>
-                    <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                <div class="col-md-6">
+                    <label for="range_distance" class="form-label">Range Distance (yards, optional)</label>
+                    <input type="number" step="0.1" class="form-control" id="range_distance" name="range_distance">
                 </div>
             </div>
 
+            <div class="alert alert-info mt-3 mb-0">
+                <i class="bi bi-info-circle"></i>
+                The system will automatically extract weather conditions, shot data, and other metrics from the uploaded file.
+            </div>
+
             <div class="d-flex gap-2 mt-3">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-upload"></i> Import
-                </button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> Upload & Import</button>
                 <a href="{{ url_for('test_sessions.index') }}" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
@@ -120,5 +110,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 {% endblock %}
-
 
