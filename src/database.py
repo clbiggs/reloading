@@ -46,13 +46,15 @@ def _run_migrations(db_path):
                 "ALTER TABLE order_lots ADD COLUMN casing_id VARCHAR REFERENCES casings(id)"
             )
 
-    # Migration: add casing_lot_id to loads
+    # Migration: add casing_lot_id and rounds_made to loads
     if _table_exists(db_path, "loads"):
         cols = _get_table_columns(db_path, "loads")
         if "casing_lot_id" not in cols:
             conn.execute(
                 "ALTER TABLE loads ADD COLUMN casing_lot_id VARCHAR REFERENCES order_lots(id)"
             )
+        if "rounds_made" not in cols:
+            conn.execute("ALTER TABLE loads ADD COLUMN rounds_made INTEGER")
         # Note: old casing_id column is left in place if it exists,
         # as SQLite cannot drop columns with FK constraints.
         # SQLAlchemy will simply ignore the unmapped column.

@@ -1,11 +1,54 @@
 {% extends "base.html" %}
 {% block title %}Load/Recipe Details - Reloading Tracker{% endblock %}
 {% block content %}
+{% set costs = load.cost_breakdown %}
+{% set batch_costs = load.batch_cost_breakdown %}
+{% set usage = load.lot_usage_breakdown %}
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2><i class="bi bi-journal-text"></i> Load / Recipe Details</h2>
     <div>
         <a href="{{ url_for('loads.edit', id=load.id) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
         <a href="{{ url_for('loads.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card stat-card primary h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Rounds Made</div>
+                <div class="stat-value">{{ load.rounds_made if load.rounds_made else "—" }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card success h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Est. Cost Per Round</div>
+                <div class="stat-value">
+                    {% if costs.total is not none %}
+                        ${{ "%.2f"|format(costs.total) }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card info h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Est. Batch Cost</div>
+                <div class="stat-value">
+                    {% if batch_costs.total is not none %}
+                        ${{ "%.2f"|format(batch_costs.total) }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -52,9 +95,11 @@
     </div>
     <div class="col-md-6">
         <div class="card h-100">
-            <div class="card-header"><h6 class="mb-0">Measurements</h6></div>
+            <div class="card-header"><h6 class="mb-0">Measurements & Batch Info</h6></div>
             <div class="card-body">
                 <dl class="row mb-0">
+                    <dt class="col-sm-4">Rounds Made</dt>
+                    <dd class="col-sm-8">{{ load.rounds_made if load.rounds_made else "—" }}</dd>
                     <dt class="col-sm-4">OAL</dt>
                     <dd class="col-sm-8">{{ "%.4f"|format(load.overall_length) if load.overall_length else "—" }} in</dd>
                     <dt class="col-sm-4">CBTO</dt>
@@ -72,47 +117,115 @@
     </div>
 </div>
 
-{% set costs = load.cost_breakdown %}
-{% if costs.total is not none %}
+{% if costs.total is not none or batch_costs.total is not none %}
 <div class="card mt-3">
-    <div class="card-header"><h6 class="mb-0"><i class="bi bi-currency-dollar"></i> Estimated Cost Per Round</h6></div>
+    <div class="card-header"><h6 class="mb-0"><i class="bi bi-currency-dollar"></i> Estimated Cost Breakdown</h6></div>
     <div class="card-body">
-        <div class="row g-3">
-            <div class="col">
-                <table class="table table-sm mb-0">
-                    <thead>
-                        <tr><th>Component</th><th class="text-end">Cost</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Bullet</td>
-                            <td class="text-end">{{ "$%.4f"|format(costs.bullet) if costs.bullet is not none else "—" }}</td>
-                        </tr>
-                        <tr>
-                            <td>Powder ({{ "%.2f"|format(load.powder_weight) if load.powder_weight else "?" }}gr)</td>
-                            <td class="text-end">{{ "$%.4f"|format(costs.powder) if costs.powder is not none else "—" }}</td>
-                        </tr>
-                        <tr>
-                            <td>Primer</td>
-                            <td class="text-end">{{ "$%.4f"|format(costs.primer) if costs.primer is not none else "—" }}</td>
-                        </tr>
-                        <tr>
-                            <td>Casing</td>
-                            <td class="text-end">{{ "$%.4f"|format(costs.casing) if costs.casing is not none else "—" }}</td>
-                        </tr>
-                    </tbody>
-                    <tfoot>
-                        <tr class="fw-bold">
-                            <td>Total Per Round</td>
-                            <td class="text-end">${{ "%.2f"|format(costs.total) }}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th class="text-end">Per Round</th>
+                        <th class="text-end">Batch Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Bullet</td>
+                        <td class="text-end">{{ "$%.4f"|format(costs.bullet) if costs.bullet is not none else "—" }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(batch_costs.bullet) if batch_costs.bullet is not none else "—" }}</td>
+                    </tr>
+                    <tr>
+                        <td>Powder ({{ "%.2f"|format(load.powder_weight) if load.powder_weight else "?" }}gr)</td>
+                        <td class="text-end">{{ "$%.4f"|format(costs.powder) if costs.powder is not none else "—" }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(batch_costs.powder) if batch_costs.powder is not none else "—" }}</td>
+                    </tr>
+                    <tr>
+                        <td>Primer</td>
+                        <td class="text-end">{{ "$%.4f"|format(costs.primer) if costs.primer is not none else "—" }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(batch_costs.primer) if batch_costs.primer is not none else "—" }}</td>
+                    </tr>
+                    <tr>
+                        <td>Casing</td>
+                        <td class="text-end">{{ "$%.4f"|format(costs.casing) if costs.casing is not none else "—" }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(batch_costs.casing) if batch_costs.casing is not none else "—" }}</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr class="fw-bold">
+                        <td>Total</td>
+                        <td class="text-end">{{ "$%.2f"|format(costs.total) if costs.total is not none else "—" }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(batch_costs.total) if batch_costs.total is not none else "—" }}</td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
+        {% if not load.rounds_made %}
+        <div class="alert alert-secondary mt-3 mb-0">
+            Add <strong>Rounds Made</strong> to estimate the total batch cost and lot usage.
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endif %}
+
+<div class="card mt-3">
+    <div class="card-header"><h6 class="mb-0"><i class="bi bi-pie-chart"></i> Component Lot Usage</h6></div>
+    <div class="card-body">
+        {% set component_labels = {
+            'bullet': 'Bullet',
+            'powder': 'Powder',
+            'primer': 'Primer',
+            'casing': 'Casing'
+        } %}
+        {% for component, item in usage.items() %}
+            {% if item %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div>
+                            <strong>{{ component_labels[component] }}</strong>
+                            <div class="small text-muted">
+                                Lot {{ item.lot.lot_number or 'N/A' }}
+                                {% if component == 'powder' and item.lot.powder %}
+                                    — {{ item.lot.powder.manufacturer.name }} {{ item.lot.powder.name }}
+                                {% elif component == 'bullet' and item.lot.bullet %}
+                                    — {{ item.lot.bullet.manufacturer.name }} {{ item.lot.bullet.model }}
+                                {% elif component == 'primer' and item.lot.primer %}
+                                    — {{ item.lot.primer.manufacturer.name }} {{ item.lot.primer.model }}
+                                {% elif component == 'casing' and item.lot.casing %}
+                                    — {{ item.lot.casing.name }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-semibold">{{ "%.1f"|format(item.percentage) }}%</div>
+                            <div class="small text-muted">
+                                {{ "%.2f"|format(item.consumed_units) }} / {{ "%.2f"|format(item.total_units) }} {{ item.unit_label }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="progress" role="progressbar" aria-label="{{ component_labels[component] }} lot usage" aria-valuenow="{{ item.percentage|round(0, 'floor') }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar {% if item.percentage >= 90 %}bg-danger{% elif item.percentage >= 75 %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}"
+                             style="width: {{ [item.percentage, 100]|min }}%">
+                            {{ "%.1f"|format(item.percentage) }}%
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        {% if not load.rounds_made %}
+        <div class="alert alert-secondary mb-0">
+            Add <strong>Rounds Made</strong> to visualize component lot usage for this batch.
+        </div>
+        {% elif not usage.bullet and not usage.powder and not usage.primer and not usage.casing %}
+        <div class="alert alert-secondary mb-0">
+            Usage percentages are unavailable because one or more selected lots are missing quantity data.
+        </div>
+        {% endif %}
+    </div>
+</div>
 
 {% if load.test_sessions %}
 <div class="card mt-3">

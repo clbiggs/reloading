@@ -225,6 +225,22 @@ def _get_form_data():
     casing_lot_id = request.form.get("casing_lot_id", "").strip()
     data["casing_lot_id"] = casing_lot_id if casing_lot_id else None
 
+    rounds_made = request.form.get("rounds_made", "").strip()
+    if rounds_made:
+        try:
+            rounds_made_value = int(rounds_made)
+        except ValueError:
+            flash("Rounds made must be a whole number.", "danger")
+            return None
+
+        if rounds_made_value <= 0:
+            flash("Rounds made must be greater than zero.", "danger")
+            return None
+
+        data["rounds_made"] = rounds_made_value
+    else:
+        data["rounds_made"] = None
+
     data["notes"] = request.form.get("notes", "").strip() or None
 
     overall_length = request.form.get("overall_length", "").strip()

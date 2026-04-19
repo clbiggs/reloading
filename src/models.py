@@ -195,6 +195,7 @@ class Load(db.Model):
     casing_lot_id = db.Column(
         db.String(36), db.ForeignKey("order_lots.id"), nullable=True
     )
+    rounds_made = db.Column(db.Integer, nullable=True)
     notes = db.Column(db.Text, nullable=True)
     overall_length = db.Column(db.Float, nullable=True)  # inches, 4 decimal places
     cbto = db.Column(db.Float, nullable=True)  # inches, 4 decimal places
@@ -251,6 +252,79 @@ class Load(db.Model):
     def cost_per_round(self):
         """Estimated total cost per round based on order lot prices."""
         return self.cost_breakdown["total"]
+
+    @property
+    def batch_cost_breakdown(self):
+        """Calculate per-component cost for the full batch."""
+        if not self.rounds_made or self.rounds_made <= 0:
+            return {
+                "bullet": None,
+                "powder": None,
+                "primer": None,
+                "casing": None,
+                "total": None,
+            }
+
+        per_round_costs = self.cost_breakdown
+        costs = {
+            component: (
+                per_round_costs[component] * self.rounds_made
+                if per_round_costs[component] is not None
+                else None
+            )
+            for component in ("bullet", "powder", "primer", "casing")
+        }
+
+        known = [v for v in costs.values() if v is not None]
+        costs["total"] = sum(known) if known else None
+        return costs
+
+    @property
+    def total_batch_cost(self):
+        """Estimated total cost for all rounds made in this batch."""
+        return self.batch_cost_breakdown["total"]
+
+    @property
+    def lot_usage_breakdown(self):
+        """Calculate component lot consumption for the full batch."""
+        usage = {
+            "bullet": self._build_lot_usage(self.bullet_lot, units_per_round=1, unit_label="rounds"),
+            "powder": self._build_lot_usage(
+                self.powder_lot,
+                units_per_round=self.powder_weight,
+                unit_label="grains",
+            ),
+            "primer": self._build_lot_usage(self.primer_lot, units_per_round=1, unit_label="rounds"),
+            "casing": self._build_lot_usage(self.casing_lot, units_per_round=1, unit_label="rounds"),
+        }
+        return usage
+
+    def _build_lot_usage(self, lot, units_per_round, unit_label):
+        """Build usage data for a component lot in the current batch."""
+        if lot is None or not self.rounds_made or self.rounds_made <= 0:
+            return None
+
+        if units_per_round is None or units_per_round <= 0:
+            return None
+
+        if not lot.quantity or lot.quantity <= 0:
+            return None
+
+        if lot.component_type == "powder":
+            total_units = lot.quantity * OrderLot.GRAINS_PER_POUND
+        else:
+            total_units = lot.quantity
+
+        consumed_units = units_per_round * self.rounds_made
+        percentage = (consumed_units / total_units) * 100 if total_units else None
+
+        return {
+            "lot": lot,
+            "consumed_units": consumed_units,
+            "total_units": total_units,
+            "percentage": percentage,
+            "unit_label": unit_label,
+        }
 
     def __repr__(self):
         return f"<Load {self.id}>"
