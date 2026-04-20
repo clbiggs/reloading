@@ -4,7 +4,6 @@
 {% block content %}
 {{ page_header("Order Lots", url_for('order_lots.add'), "Add Order Lot") }}
 
-{# --- Filter Panel --- #}
 {% set has_filters = current_filters.component_type or current_filters.status or current_filters.store %}
 <div class="card mb-3">
     <div class="card-header p-2">
@@ -23,24 +22,23 @@
     <div class="collapse{{ ' show' if has_filters else '' }}" id="filterPanel">
         <div class="card-body p-3">
             <form method="GET" action="{{ url_for('order_lots.index') }}">
-                {# Preserve current sort params #}
                 <input type="hidden" name="sort" value="{{ current_sort }}">
                 <input type="hidden" name="sort_dir" value="{{ current_sort_dir }}">
                 <div class="row g-2">
                     <div class="col-sm-6 col-md-4">
-                        <label for="filter-type" class="form-label form-label-sm mb-1">Type</label>
-                        <select name="component_type" id="filter-type" class="form-select form-select-sm">
-                            <option value="">All Types</option>
-                            <option value="bullet" {{ 'selected' if current_filters.component_type == 'bullet' }}>Bullet</option>
-                            <option value="powder" {{ 'selected' if current_filters.component_type == 'powder' }}>Powder</option>
-                            <option value="primer" {{ 'selected' if current_filters.component_type == 'primer' }}>Primer</option>
-                            <option value="casing" {{ 'selected' if current_filters.component_type == 'casing' }}>Casing</option>
+                        <label for="filter-component-type" class="form-label form-label-sm mb-1">Component Type</label>
+                        <select name="component_type" id="filter-component-type" class="form-select form-select-sm">
+                            <option value="">All Components</option>
+                            <option value="bullet" {{ 'selected' if current_filters.component_type == 'bullet' }}>Bullets</option>
+                            <option value="powder" {{ 'selected' if current_filters.component_type == 'powder' }}>Powders</option>
+                            <option value="primer" {{ 'selected' if current_filters.component_type == 'primer' }}>Primers</option>
+                            <option value="casing" {{ 'selected' if current_filters.component_type == 'casing' }}>Casings</option>
                         </select>
                     </div>
                     <div class="col-sm-6 col-md-4">
                         <label for="filter-status" class="form-label form-label-sm mb-1">Status</label>
                         <select name="status" id="filter-status" class="form-select form-select-sm">
-                            <option value="">All Statuses</option>
+                            <option value="">All</option>
                             <option value="available" {{ 'selected' if current_filters.status == 'available' }}>Available</option>
                             <option value="depleted" {{ 'selected' if current_filters.status == 'depleted' }}>Depleted</option>
                         </select>
@@ -50,7 +48,7 @@
                         <select name="store" id="filter-store" class="form-select form-select-sm">
                             <option value="">All Stores</option>
                             {% for s in store_list %}
-                                <option value="{{ s }}" {{ 'selected' if current_filters.store == s }}>{{ s }}</option>
+                            <option value="{{ s }}" {{ 'selected' if current_filters.store == s }}>{{ s }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -70,7 +68,6 @@
     </div>
 </div>
 
-{# --- Sort URL Helper Macro --- #}
 {% macro sort_header(label, field) %}
     {%- set new_dir = "asc" if current_sort == field and current_sort_dir == "desc" else "desc" -%}
     <a href="{{ url_for('order_lots.index',
@@ -86,7 +83,6 @@
     </a>
 {% endmacro %}
 
-{# --- Order Lots Table --- #}
 <div class="card">
     <div class="card-body p-0">
         {% if order_lots %}
@@ -95,26 +91,24 @@
                 <thead>
                     <tr>
                         <th>{{ sort_header("Date", "date") }}</th>
-                        <th>Type</th>
                         <th>{{ sort_header("Component", "component") }}</th>
-                        <th class="d-none d-md-table-cell">Store</th>
                         <th class="d-none d-md-table-cell">{{ sort_header("Lot #", "lot_number") }}</th>
-                        <th>{{ sort_header("Qty", "quantity") }}</th>
-                        <th class="d-none d-sm-table-cell">{{ sort_header("Cost", "cost") }}</th>
+                        <th class="d-none d-md-table-cell">Store</th>
+                        <th class="d-none d-md-table-cell text-end">{{ sort_header("Quantity", "quantity") }}</th>
+                        <th class="d-none d-md-table-cell text-end">{{ sort_header("Cost", "cost") }}</th>
                         <th>Status</th>
-                        <th class="text-end" style="width:160px;">Actions</th>
+                        <th class="text-end" style="width:180px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for ol in order_lots %}
-                    <tr class="{{ 'opacity-50' if ol.is_depleted }}">
+                    <tr>
                         <td>{{ ol.order_date.strftime('%Y-%m-%d') }}</td>
-                        <td><span class="badge bg-{{ 'primary' if ol.component_type == 'bullet' else ('success' if ol.component_type == 'powder' else ('warning' if ol.component_type == 'primer' else 'info')) }}">{{ ol.component_type|title }}</span></td>
                         <td>{{ ol.component_display }}</td>
-                        <td class="d-none d-md-table-cell">{{ ol.store or "—" }}</td>
-                        <td class="d-none d-md-table-cell">{{ ol.lot_number or "—" }}</td>
-                        <td>{{ ol.quantity }}</td>
-                        <td class="d-none d-sm-table-cell">{{ "$%.2f"|format(ol.total_cost) if ol.total_cost else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ ol.lot_number or '—' }}</td>
+                        <td class="d-none d-md-table-cell">{{ ol.store or '—' }}</td>
+                        <td class="d-none d-md-table-cell text-end">{{ ol.quantity }}</td>
+                        <td class="d-none d-md-table-cell text-end">{{ "$%.2f"|format(ol.total_cost) if ol.total_cost is not none else '—' }}</td>
                         <td>
                             {% if ol.is_depleted %}
                                 <span class="badge bg-secondary">Depleted</span>
@@ -123,6 +117,7 @@
                             {% endif %}
                         </td>
                         <td class="text-end">
+                            <a href="{{ url_for('order_lots.view', id=ol.id) }}" class="btn btn-outline-info btn-action" title="View"><i class="bi bi-eye"></i></a>
                             <form method="POST" action="{{ url_for('order_lots.toggle_depleted', id=ol.id) }}" class="d-inline">
                                 <button type="submit" class="btn btn-outline-{{ 'success' if ol.is_depleted else 'secondary' }} btn-action" title="{{ 'Mark Available' if ol.is_depleted else 'Mark Depleted' }}">
                                     <i class="bi bi-{{ 'arrow-counterclockwise' if ol.is_depleted else 'check-circle' }}"></i>

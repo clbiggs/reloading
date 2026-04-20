@@ -175,6 +175,157 @@ class OrderLot(db.Model):
             return f"{comp.name}"
         return "N/A"
 
+    @property
+    def usage_unit_label(self):
+        """Human-readable unit label for usage charts."""
+        return "grains" if self.component_type == "powder" else "units"
+
+    @property
+    def total_units(self):
+        """Total usable units in the lot."""
+        if not self.quantity or self.quantity <= 0:
+            return None
+        if self.component_type == "powder":
+            return self.quantity * self.GRAINS_PER_POUND
+        return self.quantity
+
+    @property
+    def related_loads(self):
+        """All loads that reference this order lot."""
+        if self.component_type == "bullet":
+            return list(self.bullet_loads)
+        elif self.component_type == "powder":
+            return list(self.powder_loads)
+        elif self.component_type == "primer":
+            return list(self.primer_loads)
+        elif self.component_type == "casing":
+            return list(self.casing_loads)
+        return []
+
+    @property
+    def load_usage_details(self):
+        """Build per-load usage and cost details for this lot."""
+        details = []
+        total_units = self.total_units
+
+        for load in sorted(
+            self.related_loads,
+            key=lambda item: item.date_created or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        ):
+            usage = load.lot_usage_breakdown.get(self.component_type)
+            if usage and usage["lot"].id != self.id:
+                usage = None
+
+            consumed_units = usage["consumed_units"] if usage else None
+            usage_percentage = usage["percentage"] if usage else None
+            component_batch_cost = load.batch_cost_breakdown.get(self.component_type)
+            estimated_batch_cost = load.batch_cost_breakdown.get("total")
+            estimated_per_round = load.cost_breakdown.get("total")
+
+            details.append(
+                {
+                    "load": load,
+                    "consumed_units": consumed_units,
+                    "total_units": total_units,
+                    "usage_percentage": usage_percentage,
+                    "estimated_component_batch_cost": component_batch_cost,
+                    "estimated_batch_cost": estimated_batch_cost,
+                    "estimated_per_round_cost": estimated_per_round,
+                    "rounds_made": load.rounds_made,
+                }
+            )
+
+        return details
+
+    @property
+    def tracked_used_units(self):
+        """Sum of all known lot units consumed by tracked loads."""
+        used_values = [
+            detail["consumed_units"]
+            for detail in self.load_usage_details
+            if detail["consumed_units"] is not None
+        ]
+        return sum(used_values) if used_values else 0
+
+    @property
+    def tracked_used_percentage(self):
+        """Percentage of the lot consumed by loads with known usage."""
+        if not self.total_units:
+            return None
+        return (self.tracked_used_units / self.total_units) * 100
+
+    @property
+    def estimated_remaining_percentage(self):
+        """Estimated remaining lot percentage when the lot is not depleted."""
+        used_percentage = self.tracked_used_percentage
+        if used_percentage is None:
+            return None
+        return max(0, 100 - used_percentage)
+
+    @property
+    def waste_percentage(self):
+        """Percentage of the depleted lot not accounted for by tracked loads."""
+        used_percentage = self.tracked_used_percentage
+        if used_percentage is None:
+            return None
+        return max(0, 100 - used_percentage)
+
+    @property
+    def depleted_cost_comparison(self):
+        """Compare estimated and waste-adjusted costs for depleted lots."""
+        if not self.is_depleted or self.total_cost is None:
+            return []
+
+        tracked_used_units = self.tracked_used_units
+        if not tracked_used_units:
+            return []
+
+        comparisons = []
+        for detail in self.load_usage_details:
+            consumed_units = detail["consumed_units"]
+            load = detail["load"]
+            if consumed_units is None or not load.rounds_made:
+                continue
+
+            estimated_component_batch_cost = detail["estimated_component_batch_cost"]
+            true_component_batch_cost = self.total_cost * (
+                consumed_units / tracked_used_units
+            )
+
+            estimated_batch_cost = detail["estimated_batch_cost"]
+            if (
+                estimated_batch_cost is not None
+                and estimated_component_batch_cost is not None
+            ):
+                true_batch_cost = (
+                    estimated_batch_cost
+                    - estimated_component_batch_cost
+                    + true_component_batch_cost
+                )
+            else:
+                true_batch_cost = None
+
+            true_per_round_cost = (
+                true_batch_cost / load.rounds_made if true_batch_cost is not None else None
+            )
+
+            comparisons.append(
+                {
+                    "load": load,
+                    "consumed_units": consumed_units,
+                    "usage_percentage": detail["usage_percentage"],
+                    "estimated_component_batch_cost": estimated_component_batch_cost,
+                    "true_component_batch_cost": true_component_batch_cost,
+                    "estimated_batch_cost": estimated_batch_cost,
+                    "true_batch_cost": true_batch_cost,
+                    "estimated_per_round_cost": detail["estimated_per_round_cost"],
+                    "true_per_round_cost": true_per_round_cost,
+                }
+            )
+
+        return comparisons
+
     def __repr__(self):
         return f"<OrderLot {self.id} {self.component_type}>"
 

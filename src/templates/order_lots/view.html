@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+{% block title %}Order Lot Details - Reloading Tracker{% endblock %}
+{% block content %}
+{% set usage_details = order_lot.load_usage_details %}
+{% set depleted_comparisons = order_lot.depleted_cost_comparison %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-box-seam"></i> Order Lot Details</h2>
+    <div>
+        <a href="{{ url_for('order_lots.edit', id=order_lot.id) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+        <a href="{{ url_for('order_lots.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card stat-card primary h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Component</div>
+                <div class="stat-value fs-4">{{ order_lot.component_type|title }}</div>
+                <div class="small text-muted">{{ order_lot.component_display }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card info h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Lot Quantity</div>
+                <div class="stat-value fs-4">{{ "%.2f"|format(order_lot.total_units) if order_lot.total_units is not none else order_lot.quantity }}</div>
+                <div class="small text-muted">{{ order_lot.usage_unit_label }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card success h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Tracked Used</div>
+                <div class="stat-value fs-4">
+                    {% if order_lot.tracked_used_percentage is not none %}
+                        {{ "%.1f"|format(order_lot.tracked_used_percentage) }}%
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+                <div class="small text-muted">Across all linked loads</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card {{ 'warning' if order_lot.is_depleted else 'success' }} h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">{{ 'Estimated Remaining' if not order_lot.is_depleted else 'Untracked / Waste' }}</div>
+                <div class="stat-value fs-4">
+                    {% if order_lot.is_depleted %}
+                        {{ "%.1f"|format(order_lot.waste_percentage) if order_lot.waste_percentage is not none else "—" }}%
+                    {% else %}
+                        {{ "%.1f"|format(order_lot.estimated_remaining_percentage) if order_lot.estimated_remaining_percentage is not none else "—" }}%
+                    {% endif %}
+                </div>
+                <div class="small text-muted">{{ 'Depleted lot variance' if order_lot.is_depleted else 'Based on tracked usage' }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Lot Information</h6></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Component</dt>
+                    <dd class="col-sm-8">{{ order_lot.component_display }}</dd>
+                    <dt class="col-sm-4">Order Date</dt>
+                    <dd class="col-sm-8">{{ order_lot.order_date.strftime('%Y-%m-%d') }}</dd>
+                    <dt class="col-sm-4">Store</dt>
+                    <dd class="col-sm-8">{{ order_lot.store or '—' }}</dd>
+                    <dt class="col-sm-4">Lot Number</dt>
+                    <dd class="col-sm-8">{{ order_lot.lot_number or '—' }}</dd>
+                    <dt class="col-sm-4">Original Quantity</dt>
+                    <dd class="col-sm-8">{{ order_lot.quantity }}{% if order_lot.component_type == 'powder' %} lb{% endif %}</dd>
+                    <dt class="col-sm-4">Total Usable Units</dt>
+                    <dd class="col-sm-8">{{ "%.2f"|format(order_lot.total_units) if order_lot.total_units is not none else '—' }} {{ order_lot.usage_unit_label }}</dd>
+                    <dt class="col-sm-4">Total Cost</dt>
+                    <dd class="col-sm-8">{{ "$%.2f"|format(order_lot.total_cost) if order_lot.total_cost is not none else '—' }}</dd>
+                    <dt class="col-sm-4">Cost / {{ 'Grain' if order_lot.component_type == 'powder' else 'Unit' }}</dt>
+                    <dd class="col-sm-8">{{ "$%.4f"|format(order_lot.cost_per_unit) if order_lot.cost_per_unit is not none else '—' }}</dd>
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8">
+                        {% if order_lot.is_depleted %}
+                            <span class="badge bg-secondary">Depleted</span>
+                        {% else %}
+                            <span class="badge bg-success">Available</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0"><i class="bi bi-pie-chart"></i> Lot Status Graph</h6></div>
+            <div class="card-body">
+                {% if order_lot.tracked_used_percentage is not none %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Tracked load usage</span>
+                            <span>{{ "%.1f"|format(order_lot.tracked_used_percentage) }}%</span>
+                        </div>
+                        <div class="progress" role="progressbar" aria-label="Tracked lot usage" aria-valuenow="{{ order_lot.tracked_used_percentage|round(0, 'floor') }}" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-bar bg-info text-dark" style="width: {{ [order_lot.tracked_used_percentage, 100]|min }}%">
+                                {{ "%.1f"|format(order_lot.tracked_used_percentage) }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if order_lot.is_depleted %}
+                        <div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Untracked / wasted portion</span>
+                                <span>{{ "%.1f"|format(order_lot.waste_percentage) if order_lot.waste_percentage is not none else '—' }}%</span>
+                            </div>
+                            <div class="progress" role="progressbar" aria-label="Wasted lot percentage" aria-valuenow="{{ order_lot.waste_percentage|round(0, 'floor') if order_lot.waste_percentage is not none else 0 }}" aria-valuemin="0" aria-valuemax="100">
+                                <div class="progress-bar bg-warning text-dark" style="width: {{ [order_lot.waste_percentage or 0, 100]|min }}%">
+                                    {{ "%.1f"|format(order_lot.waste_percentage) if order_lot.waste_percentage is not none else '—' }}%
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-secondary mt-3 mb-0">
+                            Because this lot is marked depleted, any percentage not accounted for by tracked loads is treated as untracked or wasted material when estimating true load cost.
+                        </div>
+                    {% else %}
+                        <div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Estimated remaining</span>
+                                <span>{{ "%.1f"|format(order_lot.estimated_remaining_percentage) if order_lot.estimated_remaining_percentage is not none else '—' }}%</span>
+                            </div>
+                            <div class="progress" role="progressbar" aria-label="Estimated remaining lot percentage" aria-valuenow="{{ order_lot.estimated_remaining_percentage|round(0, 'floor') if order_lot.estimated_remaining_percentage is not none else 0 }}" aria-valuemin="0" aria-valuemax="100">
+                                <div class="progress-bar bg-success" style="width: {{ [order_lot.estimated_remaining_percentage or 0, 100]|min }}%">
+                                    {{ "%.1f"|format(order_lot.estimated_remaining_percentage) if order_lot.estimated_remaining_percentage is not none else '—' }}%
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-secondary mt-3 mb-0">
+                            Remaining percentage is an estimate based only on linked loads with tracked rounds made and usable quantity data.
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-secondary mb-0">
+                        Usage graphs are unavailable because the lot quantity or linked load usage data is incomplete.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><h6 class="mb-0">Loads Using This Lot</h6></div>
+    <div class="card-body p-0">
+        {% if usage_details %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Load</th>
+                        <th class="text-end">Rounds</th>
+                        <th class="text-end">Used</th>
+                        <th class="text-end">Lot %</th>
+                        <th style="width: 220px;">Usage Graph</th>
+                        <th class="text-end">Est. Batch Cost</th>
+                        <th class="text-end">Est. Cost/Rd</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detail in usage_details %}
+                    {% set load = detail.load %}
+                    <tr>
+                        <td>{{ load.date_created.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <a href="{{ url_for('loads.view', id=load.id) }}" class="text-decoration-none">
+                                {{ load.bullet_lot.bullet.manufacturer.name ~ ' ' ~ load.bullet_lot.bullet.model if load.bullet_lot and load.bullet_lot.bullet else 'Load ' ~ load.id[:8] }}
+                            </a>
+                        </td>
+                        <td class="text-end">{{ detail.rounds_made if detail.rounds_made else '—' }}</td>
+                        <td class="text-end">
+                            {% if detail.consumed_units is not none %}
+                                {{ "%.2f"|format(detail.consumed_units) }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if detail.usage_percentage is not none %}
+                                {{ "%.1f"|format(detail.usage_percentage) }}%
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if detail.usage_percentage is not none %}
+                                <div class="progress" role="progressbar" aria-label="Load lot usage percentage" aria-valuenow="{{ detail.usage_percentage|round(0, 'floor') }}" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-info text-dark" style="width: {{ [detail.usage_percentage, 100]|min }}%">
+                                        {{ "%.1f"|format(detail.usage_percentage) }}%
+                                    </div>
+                                </div>
+                            {% else %}
+                                <span class="text-muted small">Unavailable</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">{{ "$%.2f"|format(detail.estimated_batch_cost) if detail.estimated_batch_cost is not none else '—' }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(detail.estimated_per_round_cost) if detail.estimated_per_round_cost is not none else '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card-body">
+            <div class="alert alert-secondary mb-0">No loads currently reference this order lot.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if order_lot.is_depleted %}
+<div class="card mt-3">
+    <div class="card-header"><h6 class="mb-0"><i class="bi bi-currency-dollar"></i> Depleted Lot True Cost Comparison</h6></div>
+    <div class="card-body">
+        {% if depleted_comparisons %}
+        <div class="alert alert-secondary">
+            These estimates redistribute the full depleted lot cost across the tracked loads that used it, including the cost of any untracked or wasted material.
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Load Date</th>
+                        <th>Load</th>
+                        <th class="text-end">Lot % Used</th>
+                        <th class="text-end">Est. Component Batch Cost</th>
+                        <th class="text-end">True Component Batch Cost</th>
+                        <th class="text-end">Est. Batch Cost</th>
+                        <th class="text-end">True Batch Cost</th>
+                        <th class="text-end">Est. Cost/Rd</th>
+                        <th class="text-end">True Cost/Rd</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detail in depleted_comparisons %}
+                    <tr>
+                        <td>{{ detail.load.date_created.strftime('%Y-%m-%d') if detail.load.date_created else '—' }}</td>
+                        <td>
+                            <a href="{{ url_for('loads.view', id=detail.load.id) }}" class="text-decoration-none">
+                                {{ detail.load.bullet_lot.bullet.manufacturer.name ~ ' ' ~ detail.load.bullet_lot.bullet.model if detail.load.bullet_lot and detail.load.bullet_lot.bullet else 'Load ' ~ detail.load.id[:8] }}
+                            </a>
+                        </td>
+                        <td class="text-end">{{ "%.1f"|format(detail.usage_percentage) if detail.usage_percentage is not none else '—' }}%</td>
+                        <td class="text-end">{{ "$%.2f"|format(detail.estimated_component_batch_cost) if detail.estimated_component_batch_cost is not none else '—' }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(detail.true_component_batch_cost) if detail.true_component_batch_cost is not none else '—' }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(detail.estimated_batch_cost) if detail.estimated_batch_cost is not none else '—' }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(detail.true_batch_cost) if detail.true_batch_cost is not none else '—' }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(detail.estimated_per_round_cost) if detail.estimated_per_round_cost is not none else '—' }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(detail.true_per_round_cost) if detail.true_per_round_cost is not none else '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-secondary mb-0">
+            True cost comparison is unavailable because no linked loads have enough tracked usage data to redistribute the depleted lot cost.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

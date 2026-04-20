@@ -90,6 +90,12 @@ def index():
     )
 
 
+@bp.route("/view/<string:id>")
+def view(id):
+    order_lot = OrderLot.query.get_or_404(id)
+    return render_template("order_lots/view.html", order_lot=order_lot)
+
+
 @bp.route("/add", methods=["GET", "POST"])
 def add():
     components = _get_components()
