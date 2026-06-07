@@ -19,27 +19,30 @@ def parse_chronograph_xlsx(file_stream):
                 kinetic_energy, power_factor, time, clean_bore,
                 cold_bore, notes}
     """
-    z = zipfile.ZipFile(file_stream)
-    ns = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+    with zipfile.ZipFile(file_stream) as z:
+        ns = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
-    # Read shared strings
-    ss_xml = z.read("xl/sharedStrings.xml")
-    root = ET.fromstring(ss_xml)
-    strings = []
-    for si in root.findall(".//s:si", ns):
-        parts = []
-        for t in si.findall(".//s:t", ns):
-            if t.text:
-                parts.append(t.text)
-        strings.append("".join(parts))
+        # Read shared strings
+        ss_xml = z.read("xl/sharedStrings.xml")
+        root = ET.fromstring(ss_xml)
+        strings = []
+        for si in root.findall(".//s:si", ns):
+            parts = []
+            for t in si.findall(".//s:t", ns):
+                if t.text:
+                    parts.append(t.text)
+            strings.append("".join(parts))
 
-    # Read sheet1
-    sheet_xml = z.read("xl/worksheets/sheet1.xml")
-    sheet_root = ET.fromstring(sheet_xml)
+        # Read sheet1
+        sheet_xml = z.read("xl/worksheets/sheet1.xml")
+        sheet_root = ET.fromstring(sheet_xml)
 
-    # Build a dict of cell_ref -> value
+    # Build a dict of cell_ref -> value and row/column -> value.
     cells = {}
+    rows = {}
     for row in sheet_root.findall(".//s:row", ns):
+        row_num = int(row.get("r"))
+        row_values = {}
         for c in row.findall("s:c", ns):
             ref = c.get("r")
             t = c.get("t")
@@ -47,7 +50,10 @@ def parse_chronograph_xlsx(file_stream):
             val = v.text if v is not None else ""
             if t == "s":
                 val = strings[int(val)] if val else ""
+            col = _cell_column(ref)
             cells[ref] = val
+            row_values[col] = val
+        rows[row_num] = row_values
 
     # Parse weather data
     weather = {}
@@ -71,61 +77,48 @@ def parse_chronograph_xlsx(file_stream):
     if altitude_match:
         weather["altitude"] = float(altitude_match)
 
-    # Parse summary data
+    summary_start_row = _find_row_with_value(rows, "A", "Pistol", "Rifle")
+
+    # Parse summary data. Older exports place the summary values at fixed rows;
+    # newer Rifle exports add Date/Time rows before Projectile weight, which shifts
+    # the rest of the summary and shot table down. Read summary rows by label so
+    # both layouts import correctly.
     summary = {}
-    summary["type"] = cells.get("A40", "").strip()
+    if summary_start_row:
+        summary["type"] = str(rows[summary_start_row].get("A", "")).strip()
+    else:
+        summary["type"] = cells.get("A40", "").strip()
 
-    pw = cells.get("B41", "")
-    pw_match = re.search(r"([\d.]+)", pw)
-    if pw_match:
-        summary["projectile_weight"] = float(pw_match.group(1))
+    summary_labels = {
+        "Projectile weight": ("projectile_weight", _first_number),
+        "Average velocity": ("avg_velocity", _first_number),
+        "Minimum velocity": ("min_velocity", _first_number),
+        "Maximum velocity": ("max_velocity", _first_number),
+        "Standard deviation": ("std_dev", _safe_float),
+        "Extreme spread": ("extreme_spread", _safe_float),
+        "Average power factor": ("avg_power_factor", _first_number),
+        "Average kinetic energy": ("avg_kinetic_energy", _first_number),
+        "Session notes": ("session_notes", lambda val: str(val).strip()),
+    }
 
-    avg_v = cells.get("B42", "")
-    avg_v_match = re.search(r"([\d.]+)", avg_v)
-    if avg_v_match:
-        summary["avg_velocity"] = float(avg_v_match.group(1))
+    for row_values in rows.values():
+        label = str(row_values.get("A", "")).strip()
+        if label not in summary_labels:
+            continue
+        key, parser = summary_labels[label]
+        parsed_value = parser(row_values.get("B", ""))
+        if parsed_value is not None:
+            summary[key] = parsed_value
 
-    min_v = cells.get("B43", "")
-    min_v_match = re.search(r"([\d.]+)", min_v)
-    if min_v_match:
-        summary["min_velocity"] = float(min_v_match.group(1))
+    summary.setdefault("session_notes", "")
 
-    max_v = cells.get("B44", "")
-    max_v_match = re.search(r"([\d.]+)", max_v)
-    if max_v_match:
-        summary["max_velocity"] = float(max_v_match.group(1))
-
-    sd = cells.get("B45", "")
-    if sd:
-        try:
-            summary["std_dev"] = float(sd)
-        except ValueError:
-            pass
-
-    es = cells.get("B46", "")
-    if es:
-        try:
-            summary["extreme_spread"] = float(es)
-        except ValueError:
-            pass
-
-    apf = cells.get("B47", "")
-    apf_match = re.search(r"([\d.]+)", apf)
-    if apf_match:
-        summary["avg_power_factor"] = float(apf_match.group(1))
-
-    ake = cells.get("B48", "")
-    ake_match = re.search(r"([\d.]+)", ake)
-    if ake_match:
-        summary["avg_kinetic_energy"] = float(ake_match.group(1))
-
-    summary["session_notes"] = cells.get("B49", "").strip()
-
-    # Parse shot data - starts at row 52
+    # Parse shot data. Locate the SHOT # header instead of assuming row 51/52.
     shots = []
-    row_num = 52
+    shot_header_row = _find_row_with_value(rows, "A", "SHOT #")
+    row_num = (shot_header_row + 1) if shot_header_row else 52
     while True:
-        shot_num_val = cells.get(f"A{row_num}", "")
+        row_values = rows.get(row_num, {})
+        shot_num_val = row_values.get("A", "")
         if not shot_num_val:
             break
         try:
@@ -133,14 +126,14 @@ def parse_chronograph_xlsx(file_stream):
         except (ValueError, TypeError):
             break
 
-        speed_val = cells.get(f"B{row_num}", "")
-        dev_val = cells.get(f"C{row_num}", "")
-        ke_val = cells.get(f"D{row_num}", "")
-        pf_val = cells.get(f"E{row_num}", "")
-        time_val = cells.get(f"F{row_num}", "")
-        clean_bore = cells.get(f"G{row_num}", "").strip()
-        cold_bore = cells.get(f"H{row_num}", "").strip()
-        shot_notes = cells.get(f"I{row_num}", "").strip()
+        speed_val = row_values.get("B", "")
+        dev_val = row_values.get("C", "")
+        ke_val = row_values.get("D", "")
+        pf_val = row_values.get("E", "")
+        time_val = row_values.get("F", "")
+        clean_bore = str(row_values.get("G", "")).strip()
+        cold_bore = str(row_values.get("H", "")).strip()
+        shot_notes = str(row_values.get("I", "")).strip()
 
         trace = {}
         if clean_bore:
@@ -154,7 +147,7 @@ def parse_chronograph_xlsx(file_stream):
             "deviation": _safe_float(dev_val),
             "kinetic_energy": _safe_float(ke_val),
             "power_factor": _safe_float(pf_val),
-            "timestamp": time_val.strip() if time_val else None,
+            "timestamp": str(time_val).strip() if time_val else None,
             "trace_data": json.dumps(trace) if trace else None,
             "notes": shot_notes if shot_notes else None,
         }
@@ -166,6 +159,31 @@ def parse_chronograph_xlsx(file_stream):
         "summary": summary,
         "shots": shots,
     }
+
+
+def _cell_column(cell_ref):
+    """Return the column letters from an XLSX cell reference."""
+    return re.sub(r"\d+", "", cell_ref or "")
+
+
+def _find_row_with_value(rows, column, *values):
+    """Find the first row where column equals one of the given values."""
+    expected = {str(value).strip().casefold() for value in values}
+    for row_num in sorted(rows):
+        actual = str(rows[row_num].get(column, "")).strip().casefold()
+        if actual in expected:
+            return row_num
+    return None
+
+
+def _first_number(val):
+    """Extract the first numeric value from a cell value."""
+    if val is None:
+        return None
+    match = re.search(r"([\d.]+)", str(val))
+    if match:
+        return float(match.group(1))
+    return None
 
 
 def _extract_value(text, pattern):
@@ -184,4 +202,3 @@ def _safe_float(val):
         return float(val)
     except (ValueError, TypeError):
         return None
-
