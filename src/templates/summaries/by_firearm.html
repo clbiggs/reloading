@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "summaries/session_selection.html" import summary_session_selection %}
 {% block title %}Summary by Firearm - Reloading Tracker{% endblock %}
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -101,67 +102,39 @@
             <span class="text-muted small">Click legend items to show or hide datasets</span>
         </div>
         <div class="card-body">
-            {% if sessions %}
+            {% if selected_sessions %}
                 <div style="height: 360px;">
                     <canvas id="firearmSessionsChart"></canvas>
                 </div>
             {% else %}
-                <p class="text-muted mb-0">Add test sessions for this firearm to view the chart.</p>
+                <p class="text-muted mb-0">Select at least one session to view the chart.</p>
             {% endif %}
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header"><h6 class="mb-0">Sessions for {{ selected_firearm.make }} {{ selected_firearm.model }}</h6></div>
-        <div class="card-body p-0">
-            {% if sessions %}
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>{{ sort_header("Date", "date") }}</th>
-                            <th>Load</th>
-                            <th class="d-none d-md-table-cell">{{ sort_header("Location", "location") }}</th>
-                            <th>Shots</th>
-                            <th>Avg Vel.</th>
-                            <th class="d-none d-sm-table-cell">SD</th>
-                            <th class="d-none d-sm-table-cell">ES</th>
-                            <th class="d-none d-md-table-cell">{{ sort_header("Group (MOA)", "grouping_size") }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for s in sessions %}
-                        <tr onclick="window.location='{{ url_for('test_sessions.view', id=s.id) }}';" style="cursor:pointer;">
-                            <td>{{ s.test_date.strftime('%Y-%m-%d') }}</td>
-                            <td>
-                                {% if s.load and s.load.bullet_lot and s.load.bullet_lot.bullet %}
-                                    {{ s.load.bullet_lot.bullet.model }}
-                                {% else %}—{% endif %}
-                            </td>
-                            <td class="d-none d-md-table-cell">{{ s.location or "—" }}</td>
-                            <td>{{ s.shot_count }}</td>
-                            <td>{{ "%.2f"|format(s.velocity_avg) if s.velocity_avg else "—" }}</td>
-                            <td class="d-none d-sm-table-cell">{{ "%.2f"|format(s.standard_deviation) if s.standard_deviation else "—" }}</td>
-                            <td class="d-none d-sm-table-cell">{{ "%.2f"|format(s.extreme_spread) if s.extreme_spread else "—" }}</td>
-                            <td class="d-none d-md-table-cell">{{ "%.4f"|format(s.grouping_size) if s.grouping_size else "—" }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="p-4 text-center text-muted">No test sessions found for this firearm.</div>
-            {% endif %}
-        </div>
-    </div>
+    {{ summary_session_selection(
+        'firearm-session-selection',
+        'summaries.by_firearm',
+        'firearm_id',
+        selected_firearm.id,
+        'Sessions for ' ~ selected_firearm.make ~ ' ' ~ selected_firearm.model,
+        'No test sessions found for this firearm.',
+        sessions,
+        selected_session_ids,
+        current_sort,
+        current_sort_dir,
+        'Load',
+        'load'
+    ) }}
+
 {% endif %}
 {% endblock %}
 
 {% block extra_scripts %}
-{% if selected_firearm and sessions %}
+{% if selected_firearm and selected_sessions %}
 <script>
 const firearmSessionChartLabels = [
-    {% for s in sessions %}
+    {% for s in selected_sessions %}
     {{ (s.test_date.strftime('%Y-%m-%d') ~ ' - ' ~ (s.load.bullet_lot.bullet.model if s.load and s.load.bullet_lot and s.load.bullet_lot.bullet else 'Unknown Load'))|tojson }},
     {% endfor %}
 ];
@@ -169,7 +142,7 @@ const firearmSessionChartLabels = [
 const firearmSessionDatasets = [
     {
         label: 'Shots Count',
-        data: [{% for s in sessions %}{{ s.shot_count }},{% endfor %}],
+        data: [{% for s in selected_sessions %}{{ s.shot_count }},{% endfor %}],
         borderColor: '#0d6efd',
         backgroundColor: 'rgba(13, 110, 253, 0.2)',
         tension: 0.25,
@@ -177,7 +150,7 @@ const firearmSessionDatasets = [
     },
     {
         label: 'Average Velocity',
-        data: [{% for s in sessions %}{{ s.velocity_avg if s.velocity_avg is not none else 'null' }},{% endfor %}],
+        data: [{% for s in selected_sessions %}{{ s.velocity_avg if s.velocity_avg is not none else 'null' }},{% endfor %}],
         borderColor: '#198754',
         backgroundColor: 'rgba(25, 135, 84, 0.2)',
         tension: 0.25,
@@ -185,7 +158,7 @@ const firearmSessionDatasets = [
     },
     {
         label: 'Standard Deviation',
-        data: [{% for s in sessions %}{{ s.standard_deviation if s.standard_deviation is not none else 'null' }},{% endfor %}],
+        data: [{% for s in selected_sessions %}{{ s.standard_deviation if s.standard_deviation is not none else 'null' }},{% endfor %}],
         borderColor: '#ffc107',
         backgroundColor: 'rgba(255, 193, 7, 0.2)',
         tension: 0.25,
@@ -193,7 +166,7 @@ const firearmSessionDatasets = [
     },
     {
         label: 'Extreme Spread',
-        data: [{% for s in sessions %}{{ s.extreme_spread if s.extreme_spread is not none else 'null' }},{% endfor %}],
+        data: [{% for s in selected_sessions %}{{ s.extreme_spread if s.extreme_spread is not none else 'null' }},{% endfor %}],
         borderColor: '#dc3545',
         backgroundColor: 'rgba(220, 53, 69, 0.2)',
         tension: 0.25,
@@ -201,7 +174,7 @@ const firearmSessionDatasets = [
     },
     {
         label: 'Group MOA',
-        data: [{% for s in sessions %}{{ s.grouping_size if s.grouping_size is not none else 'null' }},{% endfor %}],
+        data: [{% for s in selected_sessions %}{{ s.grouping_size if s.grouping_size is not none else 'null' }},{% endfor %}],
         borderColor: '#0dcaf0',
         backgroundColor: 'rgba(13, 202, 240, 0.2)',
         tension: 0.25,

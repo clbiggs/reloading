@@ -1,0 +1,104 @@
+{% macro summary_session_selection(form_id, route_endpoint, entity_param, entity_id, title, empty_text, sessions, selected_session_ids, current_sort, current_sort_dir, secondary_label, secondary_kind) %}
+<div class="card">
+    <form method="GET" action="{{ url_for(route_endpoint) }}" id="{{ form_id }}">
+        <input type="hidden" name="{{ entity_param }}" value="{{ entity_id }}">
+        <input type="hidden" name="sort" value="{{ current_sort }}">
+        <input type="hidden" name="sort_dir" value="{{ current_sort_dir }}" data-default-sort-dir>
+        <input type="hidden" name="session_filter" value="1">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h6 class="mb-0">{{ title }}</h6>
+            {% if sessions %}
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="text-muted small">{{ selected_session_ids|length }} of {{ sessions|length }} included</span>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Session selection actions">
+                    <button type="submit" class="btn btn-outline-primary">Apply</button>
+                    <button type="button" class="btn btn-outline-secondary" data-session-select="all" data-target-form="{{ form_id }}">All</button>
+                    <button type="button" class="btn btn-outline-secondary" data-session-select="none" data-target-form="{{ form_id }}">None</button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-body p-0">
+            {% if sessions %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 3rem;">Include</th>
+                            <th>
+                                {% set date_dir = 'asc' if current_sort == 'date' and current_sort_dir == 'desc' else 'desc' %}
+                                <a href="{{ url_for(route_endpoint) }}?{{ entity_param }}={{ entity_id }}&sort=date&sort_dir={{ date_dir }}&session_filter=1{% for session_id in selected_session_ids %}&session_id={{ session_id }}{% endfor %}" class="text-decoration-none text-reset d-inline-flex align-items-center gap-1">
+                                    Date{% if current_sort == 'date' %}<i class="bi bi-sort-{{ 'up' if current_sort_dir == 'asc' else 'down' }}"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>{{ secondary_label }}</th>
+                            <th class="d-none d-md-table-cell">
+                                {% set location_dir = 'asc' if current_sort == 'location' and current_sort_dir == 'desc' else 'desc' %}
+                                <a href="{{ url_for(route_endpoint) }}?{{ entity_param }}={{ entity_id }}&sort=location&sort_dir={{ location_dir }}&session_filter=1{% for session_id in selected_session_ids %}&session_id={{ session_id }}{% endfor %}" class="text-decoration-none text-reset d-inline-flex align-items-center gap-1">
+                                    Location{% if current_sort == 'location' %}<i class="bi bi-sort-{{ 'up' if current_sort_dir == 'asc' else 'down' }}"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>Shots</th>
+                            <th>Avg Vel.</th>
+                            <th class="d-none d-sm-table-cell">SD</th>
+                            <th class="d-none d-sm-table-cell">ES</th>
+                            <th class="d-none d-md-table-cell">
+                                {% set grouping_dir = 'asc' if current_sort == 'grouping_size' and current_sort_dir == 'desc' else 'desc' %}
+                                <a href="{{ url_for(route_endpoint) }}?{{ entity_param }}={{ entity_id }}&sort=grouping_size&sort_dir={{ grouping_dir }}&session_filter=1{% for session_id in selected_session_ids %}&session_id={{ session_id }}{% endfor %}" class="text-decoration-none text-reset d-inline-flex align-items-center gap-1">
+                                    Group (MOA){% if current_sort == 'grouping_size' %}<i class="bi bi-sort-{{ 'up' if current_sort_dir == 'asc' else 'down' }}"></i>{% endif %}
+                                </a>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in sessions %}
+                        <tr onclick="window.location='{{ url_for('test_sessions.view', id=s.id) }}';" style="cursor:pointer;">
+                            <td class="text-center" onclick="event.stopPropagation();">
+                                <input class="form-check-input session-select-checkbox" type="checkbox" name="session_id" value="{{ s.id }}" aria-label="Include session from {{ s.test_date.strftime('%Y-%m-%d') }}" {% if s.id in selected_session_ids %}checked{% endif %}>
+                            </td>
+                            <td>{{ s.test_date.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                {% if secondary_kind == 'load' %}
+                                    {% if s.load and s.load.bullet_lot and s.load.bullet_lot.bullet %}
+                                        {{ s.load.bullet_lot.bullet.model }}
+                                    {% else %}—{% endif %}
+                                {% else %}
+                                    {{ s.firearm.make ~ ' ' ~ s.firearm.model if s.firearm else '—' }}
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-md-table-cell">{{ s.location or "—" }}</td>
+                            <td>{{ s.shot_count }}</td>
+                            <td>{{ "%.2f"|format(s.velocity_avg) if s.velocity_avg else "—" }}</td>
+                            <td class="d-none d-sm-table-cell">{{ "%.2f"|format(s.standard_deviation) if s.standard_deviation else "—" }}</td>
+                            <td class="d-none d-sm-table-cell">{{ "%.2f"|format(s.extreme_spread) if s.extreme_spread else "—" }}</td>
+                            <td class="d-none d-md-table-cell">{{ "%.4f"|format(s.grouping_size) if s.grouping_size else "—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-4 text-center text-muted">{{ empty_text }}</div>
+            {% endif %}
+        </div>
+    </form>
+</div>
+<script>
+(() => {
+    const form = document.getElementById({{ form_id|tojson }});
+    if (!form) {
+        return;
+    }
+
+    form.querySelectorAll('[data-session-select]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const checked = button.dataset.sessionSelect === 'all';
+            form.querySelectorAll('.session-select-checkbox').forEach((checkbox) => {
+                checkbox.checked = checked;
+            });
+            form.submit();
+        });
+    });
+})();
+</script>
+{% endmacro %}

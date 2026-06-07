@@ -6,6 +6,17 @@ from models import db, Firearm, Load, Bullet, Powder, OrderLot, TestSession
 bp = Blueprint("summaries", __name__, url_prefix="/summaries")
 
 
+def _get_selected_sessions(sessions):
+    """Return the sessions included in summary stats and charts."""
+    if request.args.get("session_filter"):
+        selected_ids = set(request.args.getlist("session_id"))
+    else:
+        selected_ids = {session.id for session in sessions}
+
+    selected_sessions = [session for session in sessions if session.id in selected_ids]
+    return selected_sessions, selected_ids
+
+
 def _get_sorted_sessions(query):
     """Apply main test sessions page sort options to a summary session query."""
     sort = request.args.get("sort", "date").strip()
@@ -46,6 +57,8 @@ def by_firearm():
 
     selected_firearm = None
     sessions = []
+    selected_sessions = []
+    selected_session_ids = set()
     stats = {}
     current_sort = "date"
     current_sort_dir = "desc"
@@ -56,13 +69,16 @@ def by_firearm():
             sessions, current_sort, current_sort_dir = _get_sorted_sessions(
                 TestSession.query.filter_by(firearm_id=firearm_id)
             )
-            stats = _calculate_session_stats(sessions)
+            selected_sessions, selected_session_ids = _get_selected_sessions(sessions)
+            stats = _calculate_session_stats(selected_sessions)
 
     return render_template(
         "summaries/by_firearm.html",
         firearms=firearms,
         selected_firearm=selected_firearm,
         sessions=sessions,
+        selected_sessions=selected_sessions,
+        selected_session_ids=selected_session_ids,
         stats=stats,
         current_sort=current_sort,
         current_sort_dir=current_sort_dir,
@@ -77,6 +93,8 @@ def by_bullet():
 
     selected_bullet = None
     sessions = []
+    selected_sessions = []
+    selected_session_ids = set()
     stats = {}
     current_sort = "date"
     current_sort_dir = "desc"
@@ -102,13 +120,16 @@ def by_bullet():
                     sessions, current_sort, current_sort_dir = _get_sorted_sessions(
                         TestSession.query.filter(TestSession.load_id.in_(load_ids))
                     )
-            stats = _calculate_session_stats(sessions)
+            selected_sessions, selected_session_ids = _get_selected_sessions(sessions)
+            stats = _calculate_session_stats(selected_sessions)
 
     return render_template(
         "summaries/by_bullet.html",
         bullets=bullets,
         selected_bullet=selected_bullet,
         sessions=sessions,
+        selected_sessions=selected_sessions,
+        selected_session_ids=selected_session_ids,
         stats=stats,
         current_sort=current_sort,
         current_sort_dir=current_sort_dir,
@@ -123,6 +144,8 @@ def by_powder():
 
     selected_powder = None
     sessions = []
+    selected_sessions = []
+    selected_session_ids = set()
     stats = {}
     current_sort = "date"
     current_sort_dir = "desc"
@@ -148,13 +171,16 @@ def by_powder():
                     sessions, current_sort, current_sort_dir = _get_sorted_sessions(
                         TestSession.query.filter(TestSession.load_id.in_(load_ids))
                     )
-            stats = _calculate_session_stats(sessions)
+            selected_sessions, selected_session_ids = _get_selected_sessions(sessions)
+            stats = _calculate_session_stats(selected_sessions)
 
     return render_template(
         "summaries/by_powder.html",
         powders=powders,
         selected_powder=selected_powder,
         sessions=sessions,
+        selected_sessions=selected_sessions,
+        selected_session_ids=selected_session_ids,
         stats=stats,
         current_sort=current_sort,
         current_sort_dir=current_sort_dir,

@@ -1,5 +1,6 @@
 """Parser for Velocity Pro Radar Chronograph XLSX export files."""
 
+from datetime import datetime, timedelta
 import json
 import re
 import zipfile
@@ -12,7 +13,7 @@ def parse_chronograph_xlsx(file_stream):
 
     Returns a dict with:
       - weather: {temperature, humidity, pressure, altitude}
-      - summary: {type, projectile_weight, avg_velocity, min_velocity,
+      - summary: {type, date, time, projectile_weight, avg_velocity, min_velocity,
                    max_velocity, std_dev, extreme_spread, avg_power_factor,
                    avg_kinetic_energy, session_notes}
       - shots: list of dicts with {shot_number, speed, deviation,
@@ -90,6 +91,8 @@ def parse_chronograph_xlsx(file_stream):
         summary["type"] = cells.get("A40", "").strip()
 
     summary_labels = {
+        "Date": ("date", _safe_date),
+        "Time": ("time", lambda val: str(val).strip()),
         "Projectile weight": ("projectile_weight", _first_number),
         "Average velocity": ("avg_velocity", _first_number),
         "Minimum velocity": ("min_velocity", _first_number),
@@ -192,6 +195,29 @@ def _extract_value(text, pattern):
     if match:
         return match.group(1)
     return None
+
+
+def _safe_date(val):
+    """Parse common XLSX date values into an ISO date string."""
+    if val is None or val == "":
+        return None
+
+    text = str(val).strip()
+    try:
+        serial = float(text)
+    except ValueError:
+        serial = None
+
+    if serial is not None:
+        return (datetime(1899, 12, 30) + timedelta(days=serial)).date().isoformat()
+
+    for date_format in ("%B %d, %Y", "%b %d, %Y", "%Y-%m-%d", "%m/%d/%Y"):
+        try:
+            return datetime.strptime(text, date_format).date().isoformat()
+        except ValueError:
+            continue
+
+    return text
 
 
 def _safe_float(val):

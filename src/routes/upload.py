@@ -10,6 +10,87 @@ from utils.calculations import calculate_density_altitude
 bp = Blueprint("upload", __name__, url_prefix="/upload")
 
 
+def _get_import_session_datetime(test_date_str, summary, shots_data):
+    """Choose the imported session datetime.
+
+    Preserve an explicitly supplied datetime or export summary time. If the
+    chosen date has no time, use the first shot timestamp when available.
+    """
+    parsed_form_datetime = _parse_form_datetime(test_date_str)
+    if parsed_form_datetime:
+        test_date, has_time = parsed_form_datetime
+        if has_time:
+            return test_date
+        return _with_time(test_date, _first_shot_time(shots_data)) or test_date
+
+    summary_date = _parse_date(summary.get("date"))
+    summary_time = _parse_time(summary.get("time"))
+    if summary_date:
+        test_date = datetime.combine(
+            summary_date.date(), summary_time or datetime.min.time()
+        )
+        if summary_time:
+            return test_date
+        return _with_time(test_date, _first_shot_time(shots_data)) or test_date
+
+    test_date = datetime.now(timezone.utc)
+    return _with_time(test_date, _first_shot_time(shots_data)) or test_date
+
+
+def _parse_form_datetime(value):
+    if not value:
+        return None
+
+    for date_format, has_time in (("%Y-%m-%dT%H:%M", True), ("%Y-%m-%d", False)):
+        try:
+            return datetime.strptime(value, date_format), has_time
+        except ValueError:
+            continue
+
+    return None
+
+
+def _parse_date(value):
+    if not value:
+        return None
+
+    for date_format in ("%Y-%m-%d", "%B %d, %Y", "%b %d, %Y", "%m/%d/%Y"):
+        try:
+            return datetime.strptime(str(value).strip(), date_format)
+        except ValueError:
+            continue
+
+    return None
+
+
+def _first_shot_time(shots_data):
+    for shot_data in shots_data:
+        shot_time = _parse_time(shot_data.get("timestamp"))
+        if shot_time:
+            return shot_time
+    return None
+
+
+def _parse_time(value):
+    if not value:
+        return None
+
+    text = str(value).strip().upper()
+    for time_format in ("%I:%M:%S %p", "%I:%M %p", "%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.strptime(text, time_format).time()
+        except ValueError:
+            continue
+
+    return None
+
+
+def _with_time(test_date, shot_time):
+    if not shot_time:
+        return None
+    return datetime.combine(test_date.date(), shot_time, tzinfo=test_date.tzinfo)
+
+
 @bp.route("/", methods=["GET", "POST"])
 def index():
     firearms = Firearm.query.order_by(Firearm.make, Firearm.model).all()
@@ -56,16 +137,7 @@ def index():
         range_distance = request.form.get("range_distance", "").strip()
         grouping_size = request.form.get("grouping_size", "").strip()
 
-        if test_date_str:
-            try:
-                test_date = datetime.strptime(test_date_str, "%Y-%m-%dT%H:%M")
-            except ValueError:
-                try:
-                    test_date = datetime.strptime(test_date_str, "%Y-%m-%d")
-                except ValueError:
-                    test_date = datetime.now(timezone.utc)
-        else:
-            test_date = datetime.now(timezone.utc)
+        test_date = _get_import_session_datetime(test_date_str, summary, shots_data)
 
         # Build notes from summary
         notes_parts = []
