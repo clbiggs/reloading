@@ -107,6 +107,42 @@ class Powder(db.Model):
         return f"<Powder {self.manufacturer.name} {self.name}>"
 
 
+class FactoryAmmo(db.Model):
+    __tablename__ = "factory_ammo"
+
+    LEGACY_BULLET_STYLES = {
+        "lead_hollow_point": "Lead Hollow Point",
+        "jacketed_hollow_point": "Jacketed Hollow Point",
+        "copper_plated": "Copper Plated",
+    }
+
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    caliber_id = db.Column(db.Integer, db.ForeignKey("calibers.id"), nullable=False)
+    manufacturer_id = db.Column(
+        db.String(36), db.ForeignKey("manufacturers.id"), nullable=False
+    )
+    weight = db.Column(db.Float, nullable=False)  # grains, 2 decimal places
+    bullet_style = db.Column(db.String(100), nullable=False)
+    muzzle_velocity = db.Column(db.Float, nullable=False)  # fps, 2 decimal places
+    bullet_brand = db.Column(db.String(100), nullable=False)
+    overall_length = db.Column(db.Float, nullable=True)  # inches, 4 decimal places
+    g1_bc = db.Column(db.Float, nullable=True)  # G1 ballistic coefficient
+    g7_bc = db.Column(db.Float, nullable=True)  # G7 ballistic coefficient
+
+    caliber = db.relationship("Caliber", backref="factory_ammo")
+    manufacturer = db.relationship("Manufacturer", backref="factory_ammo")
+
+    @property
+    def bullet_style_display(self):
+        return self.LEGACY_BULLET_STYLES.get(self.bullet_style, self.bullet_style)
+
+    def __repr__(self):
+        return (
+            f"<FactoryAmmo {self.manufacturer.name} {self.caliber.name} "
+            f"{self.weight}gr>"
+        )
+
+
 class OrderLot(db.Model):
     __tablename__ = "order_lots"
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
@@ -119,16 +155,20 @@ class OrderLot(db.Model):
     # Polymorphic component reference
     component_type = db.Column(
         db.String(20), nullable=False
-    )  # 'bullet', 'powder', 'primer', 'casing'
+    )  # 'bullet', 'powder', 'primer', 'casing', 'factory_ammo'
     bullet_id = db.Column(db.String(36), db.ForeignKey("bullets.id"), nullable=True)
     powder_id = db.Column(db.String(36), db.ForeignKey("powders.id"), nullable=True)
     primer_id = db.Column(db.String(36), db.ForeignKey("primers.id"), nullable=True)
     casing_id = db.Column(db.String(36), db.ForeignKey("casings.id"), nullable=True)
+    factory_ammo_id = db.Column(
+        db.String(36), db.ForeignKey("factory_ammo.id"), nullable=True
+    )
 
     bullet = db.relationship("Bullet", backref="order_lots")
     powder = db.relationship("Powder", backref="order_lots")
     primer = db.relationship("Primer", backref="order_lots")
     casing = db.relationship("Casing", backref="order_lots")
+    factory_ammo = db.relationship("FactoryAmmo", backref="order_lots")
 
     @property
     def component(self):
@@ -140,6 +180,8 @@ class OrderLot(db.Model):
             return self.primer
         elif self.component_type == "casing":
             return self.casing
+        elif self.component_type == "factory_ammo":
+            return self.factory_ammo
         return None
 
     # Grains per pound constant for powder cost calculation
@@ -173,6 +215,11 @@ class OrderLot(db.Model):
             return f"{comp.manufacturer.name} {comp.model}"
         elif self.component_type == "casing":
             return f"{comp.name}"
+        elif self.component_type == "factory_ammo":
+            return (
+                f"{comp.manufacturer.name} {comp.caliber.name} "
+                f"({comp.weight}gr {comp.bullet_style_display})"
+            )
         return "N/A"
 
     @property
@@ -200,6 +247,8 @@ class OrderLot(db.Model):
             return list(self.primer_loads)
         elif self.component_type == "casing":
             return list(self.casing_loads)
+        elif self.component_type == "factory_ammo":
+            return []
         return []
 
     @property

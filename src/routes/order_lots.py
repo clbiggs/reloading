@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from models import db, OrderLot, Bullet, Powder, Primer, Casing
+from models import db, OrderLot, Bullet, Powder, Primer, Casing, FactoryAmmo
 
 bp = Blueprint("order_lots", __name__, url_prefix="/order-lots")
 
@@ -14,6 +14,12 @@ def _get_components():
         "powders": Powder.query.join(Powder.manufacturer).order_by(Powder.name).all(),
         "primers": Primer.query.join(Primer.manufacturer).order_by(Primer.model).all(),
         "casings": Casing.query.order_by(Casing.name).all(),
+        "factory_ammo": (
+            FactoryAmmo.query.join(FactoryAmmo.manufacturer)
+            .join(FactoryAmmo.caliber)
+            .order_by(db.text("manufacturers.name"), db.text("calibers.name"), FactoryAmmo.weight)
+            .all()
+        ),
     }
 
 
@@ -26,7 +32,7 @@ def index():
 
     query = OrderLot.query
 
-    if component_type in ("bullet", "powder", "primer", "casing"):
+    if component_type in ("bullet", "powder", "primer", "casing", "factory_ammo"):
         query = query.filter(OrderLot.component_type == component_type)
 
     if status == "available":
@@ -142,6 +148,8 @@ def edit(id):
             order_lot.primer_id = None
         if data["component_type"] != "casing":
             order_lot.casing_id = None
+        if data["component_type"] != "factory_ammo":
+            order_lot.factory_ammo_id = None
         db.session.commit()
         flash("Order lot updated.", "success")
         return redirect(url_for("order_lots.index"))
@@ -225,6 +233,8 @@ def _get_form_data():
         data["primer_id"] = component_id
     elif component_type == "casing":
         data["casing_id"] = component_id
+    elif component_type == "factory_ammo":
+        data["factory_ammo_id"] = component_id
     else:
         flash("Invalid component type.", "danger")
         return None

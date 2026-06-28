@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "macros.html" import delete_button, empty_state, page_header %}
+{% block title %}Factory Ammo - Reloading Tracker{% endblock %}
+{% block content %}
+{{ page_header("Factory Ammo", url_for('factory_ammo.add'), "Add Factory Ammo") }}
+<div class="card">
+    <div class="card-body p-0">
+        {% if factory_ammo %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Manufacturer</th>
+                        <th>Caliber</th>
+                        <th>Weight (gr)</th>
+                        <th class="d-none d-md-table-cell">Bullet Style</th>
+                        <th class="d-none d-md-table-cell">Muzzle Velocity (fps)</th>
+                        <th class="d-none d-lg-table-cell">OAL (in)</th>
+                        <th class="d-none d-lg-table-cell">G1 BC</th>
+                        <th class="d-none d-lg-table-cell">G7 BC</th>
+                        <th class="d-none d-md-table-cell">Bullet Brand</th>
+                        <th class="text-end" style="width:120px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in factory_ammo %}
+                    <tr>
+                        <td>{{ a.manufacturer.name }}</td>
+                        <td>{{ a.caliber.name }}</td>
+                        <td>{{ "%.2f"|format(a.weight) }}</td>
+                        <td class="d-none d-md-table-cell">{{ a.bullet_style_display }}</td>
+                        <td class="d-none d-md-table-cell">{{ "%.2f"|format(a.muzzle_velocity) }}</td>
+                        <td class="d-none d-lg-table-cell">{{ "%.4f"|format(a.overall_length) if a.overall_length else "—" }}</td>
+                        <td class="d-none d-lg-table-cell">{{ a.g1_bc if a.g1_bc else "—" }}</td>
+                        <td class="d-none d-lg-table-cell">{{ a.g7_bc if a.g7_bc else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ a.bullet_brand }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('factory_ammo.edit', id=a.id) }}" class="btn btn-outline-primary btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                            {{ delete_button(url_for('factory_ammo.delete', id=a.id), a.manufacturer.name ~ ' ' ~ a.caliber.name) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            {{ empty_state("factory ammo", url_for('factory_ammo.add')) }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

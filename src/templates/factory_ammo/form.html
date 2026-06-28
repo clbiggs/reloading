@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "macros.html" import form_actions %}
+{% block title %}{{ "Edit" if ammo else "Add" }} Factory Ammo - Reloading Tracker{% endblock %}
+{% block content %}
+<h2>{{ "Edit" if ammo else "Add" }} Factory Ammo</h2>
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="manufacturer_id" class="form-label">Manufacturer <span class="text-danger">*</span></label>
+                    <select class="form-select" id="manufacturer_id" name="manufacturer_id" required>
+                        <option value="">Select manufacturer...</option>
+                        {% for m in manufacturers %}
+                        <option value="{{ m.id }}" {% if ammo and ammo.manufacturer_id == m.id %}selected{% endif %}>{{ m.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="caliber_id" class="form-label">Caliber <span class="text-danger">*</span></label>
+                    <select class="form-select" id="caliber_id" name="caliber_id" required>
+                        <option value="">Select caliber...</option>
+                        {% for c in calibers %}
+                        <option value="{{ c.id }}" {% if ammo and ammo.caliber_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="weight" class="form-label">Weight (grains) <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" class="form-control" id="weight" name="weight" value="{{ '%.2f'|format(ammo.weight) if ammo else '' }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="bullet_style" class="form-label">Bullet Style <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="bullet_style" name="bullet_style" value="{% if ammo %}{{ ammo.bullet_style_display }}{% endif %}" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="muzzle_velocity" class="form-label">Muzzle Velocity (fps) <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" class="form-control" id="muzzle_velocity" name="muzzle_velocity" value="{{ '%.2f'|format(ammo.muzzle_velocity) if ammo else '' }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="bullet_brand" class="form-label">Bullet Brand <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="bullet_brand" name="bullet_brand" value="{{ ammo.bullet_brand if ammo else '' }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="overall_length" class="form-label">Overall Length (in)</label>
+                    <input type="number" step="0.0001" class="form-control" id="overall_length" name="overall_length" value="{% if ammo and ammo.overall_length %}{{ '%.4f'|format(ammo.overall_length) }}{% endif %}">
+                </div>
+                <div class="col-md-6">
+                    <label for="g1_bc" class="form-label">G1 Ballistic Coefficient</label>
+                    <input type="number" step="0.001" class="form-control" id="g1_bc" name="g1_bc" value="{% if ammo and ammo.g1_bc %}{{ ammo.g1_bc }}{% endif %}">
+                </div>
+                <div class="col-md-6">
+                    <label for="g7_bc" class="form-label">G7 Ballistic Coefficient</label>
+                    <input type="number" step="0.001" class="form-control" id="g7_bc" name="g7_bc" value="{% if ammo and ammo.g7_bc %}{{ ammo.g7_bc }}{% endif %}">
+                </div>
+            </div>
+            {{ form_actions(url_for('factory_ammo.index')) }}
+        </form>
+    </div>
+</div>
+{% endblock %}

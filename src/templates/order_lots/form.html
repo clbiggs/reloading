@@ -35,6 +35,7 @@
                         <option value="powder" {% if order_lot and order_lot.component_type == 'powder' %}selected{% endif %}>Powder</option>
                         <option value="primer" {% if order_lot and order_lot.component_type == 'primer' %}selected{% endif %}>Primer</option>
                         <option value="casing" {% if order_lot and order_lot.component_type == 'casing' %}selected{% endif %}>Casing</option>
+                        <option value="factory_ammo" {% if order_lot and order_lot.component_type == 'factory_ammo' %}selected{% endif %}>Factory Ammo</option>
                     </select>
                 </div>
                 <div class="col-12">
@@ -72,10 +73,15 @@ const components = {
         {% for c in casings %}
         {id: {{ c.id|tojson }}, name: {{ c.name|tojson }}},
         {% endfor %}
+    ],
+    factory_ammo: [
+        {% for a in factory_ammo %}
+        {id: {{ a.id|tojson }}, name: {{ ("%s %s (%.2fgr %s, %.2f fps, %s bullet)"|format(a.manufacturer.name, a.caliber.name, a.weight, a.bullet_style_display, a.muzzle_velocity, a.bullet_brand))|tojson }}},
+        {% endfor %}
     ]
 };
 
-const currentComponentId = {{ (order_lot.bullet_id or order_lot.powder_id or order_lot.primer_id or order_lot.casing_id or '' if order_lot else '')|tojson }};
+const currentComponentId = {{ (order_lot.bullet_id or order_lot.powder_id or order_lot.primer_id or order_lot.casing_id or order_lot.factory_ammo_id or '' if order_lot else '')|tojson }};
 
 function updateComponentSelect() {
     const type = document.getElementById('component_type').value;

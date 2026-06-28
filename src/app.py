@@ -2,7 +2,7 @@
 
 import os
 from flask import Flask, render_template
-from models import db, TestSession, Firearm, Load, Bullet, Powder
+from models import db, TestSession, Firearm, Load, Bullet, Powder, FactoryAmmo
 from database import init_db
 
 
@@ -23,6 +23,7 @@ def create_app():
         bullets,
         casings,
         powders,
+        factory_ammo,
         order_lots,
         loads,
         firearms,
@@ -39,6 +40,7 @@ def create_app():
     app.register_blueprint(bullets.bp)
     app.register_blueprint(casings.bp)
     app.register_blueprint(powders.bp)
+    app.register_blueprint(factory_ammo.bp)
     app.register_blueprint(order_lots.bp)
     app.register_blueprint(loads.bp)
     app.register_blueprint(firearms.bp)
@@ -57,6 +59,7 @@ def create_app():
         session_count = TestSession.query.count()
         bullet_count = Bullet.query.count()
         powder_count = Powder.query.count()
+        factory_ammo_count = FactoryAmmo.query.count()
         return render_template(
             "index.html",
             recent_sessions=recent_sessions,
@@ -65,6 +68,7 @@ def create_app():
             session_count=session_count,
             bullet_count=bullet_count,
             powder_count=powder_count,
+            factory_ammo_count=factory_ammo_count,
         )
 
     return app

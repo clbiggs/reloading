@@ -45,6 +45,20 @@ def _run_migrations(db_path):
             conn.execute(
                 "ALTER TABLE order_lots ADD COLUMN casing_id VARCHAR REFERENCES casings(id)"
             )
+        if "factory_ammo_id" not in cols:
+            conn.execute(
+                "ALTER TABLE order_lots ADD COLUMN factory_ammo_id VARCHAR REFERENCES factory_ammo(id)"
+            )
+
+    # Migration: add optional measurement fields to factory_ammo
+    if _table_exists(db_path, "factory_ammo"):
+        cols = _get_table_columns(db_path, "factory_ammo")
+        if "overall_length" not in cols:
+            conn.execute("ALTER TABLE factory_ammo ADD COLUMN overall_length FLOAT")
+        if "g1_bc" not in cols:
+            conn.execute("ALTER TABLE factory_ammo ADD COLUMN g1_bc FLOAT")
+        if "g7_bc" not in cols:
+            conn.execute("ALTER TABLE factory_ammo ADD COLUMN g7_bc FLOAT")
 
     # Migration: add casing_lot_id and rounds_made to loads
     if _table_exists(db_path, "loads"):

@@ -17,7 +17,7 @@
         <div class="card stat-card primary h-100">
             <div class="card-body">
                 <div class="text-muted small text-uppercase">Component</div>
-                <div class="stat-value fs-4">{{ order_lot.component_type|title }}</div>
+                <div class="stat-value fs-4">{{ 'Factory Ammo' if order_lot.component_type == 'factory_ammo' else order_lot.component_type|title }}</div>
                 <div class="small text-muted">{{ order_lot.component_display }}</div>
             </div>
         </div>

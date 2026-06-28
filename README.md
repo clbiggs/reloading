@@ -4,8 +4,8 @@ A web application for managing and tracking ammunition reloading data. Built wit
 
 ## Features
 
-- **Component Management** — Manage calibers, primer types, manufacturers, bullets, primers, powders, and casings with full CRUD operations
-- **Order Lot Tracking** — Track purchases of bullets, powder, and primers with lot numbers, costs, and quantities
+- **Component Management** — Manage calibers, primer types, manufacturers, bullets, primers, powders, casings, and factory ammo with full CRUD operations
+- **Order Lot Tracking** — Track purchases of bullets, powder, primers, casings, and factory ammo with lot numbers, costs, and quantities
 - **Load/Recipe Builder** — Create and manage load recipes linking specific component order lots with powder weights and measurements
 - **Firearm Registry** — Track firearms with caliber, barrel length, twist rate, and notes
 - **Test Sessions** — Record chronograph test sessions with weather data, shot groups, and individual shot velocities
