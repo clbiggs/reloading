@@ -27,6 +27,17 @@ def _table_exists(db_path, table_name):
     return exists
 
 
+def _add_column_if_missing(conn, db_path, table_name, column_name, ddl):
+    """Add a column when absent, tolerating concurrent startup races."""
+    if column_name in _get_table_columns(db_path, table_name):
+        return
+    try:
+        conn.execute(ddl)
+    except sqlite3.OperationalError as exc:
+        if "duplicate column name" not in str(exc).lower():
+            raise
+
+
 def _run_migrations(db_path):
     """Run schema migrations for existing databases."""
     if not os.path.exists(db_path):
@@ -69,6 +80,17 @@ def _run_migrations(db_path):
             )
         if "rounds_made" not in cols:
             conn.execute("ALTER TABLE loads ADD COLUMN rounds_made INTEGER")
+
+    # Migration: add factory_ammo_lot_id to test_sessions
+    if _table_exists(db_path, "test_sessions"):
+        cols = _get_table_columns(db_path, "test_sessions")
+        _add_column_if_missing(
+            conn,
+            db_path,
+            "test_sessions",
+            "factory_ammo_lot_id",
+            "ALTER TABLE test_sessions ADD COLUMN factory_ammo_lot_id VARCHAR REFERENCES order_lots(id)",
+        )
         # Note: old casing_id column is left in place if it exists,
         # as SQLite cannot drop columns with FK constraints.
         # SQLAlchemy will simply ignore the unmapped column.

@@ -3,7 +3,7 @@
 import io
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from models import db, TestSession, Shot, Firearm, Load
+from models import db, TestSession, Shot, Firearm, Load, OrderLot
 from utils.chronograph_parser import parse_chronograph_xlsx
 from utils.calculations import calculate_density_altitude
 
@@ -95,19 +95,24 @@ def _with_time(test_date, shot_time):
 def index():
     firearms = Firearm.query.order_by(Firearm.make, Firearm.model).all()
     loads = Load.query.order_by(Load.date_created.desc()).all()
+    factory_ammo_lots = (
+        OrderLot.query.filter_by(component_type="factory_ammo")
+        .order_by(OrderLot.order_date.desc())
+        .all()
+    )
 
     if request.method == "POST":
         file = request.files.get("file")
         if not file or not file.filename:
             flash("Please select a file to upload.", "danger")
             return render_template(
-                "upload/index.html", firearms=firearms, loads=loads
+                "upload/index.html", firearms=firearms, loads=loads, factory_ammo_lots=factory_ammo_lots
             )
 
         if not file.filename.lower().endswith(".xlsx"):
             flash("Only .xlsx files are supported.", "danger")
             return render_template(
-                "upload/index.html", firearms=firearms, loads=loads
+                "upload/index.html", firearms=firearms, loads=loads, factory_ammo_lots=factory_ammo_lots
             )
 
         try:
@@ -116,7 +121,7 @@ def index():
         except Exception as e:
             flash(f"Error parsing file: {str(e)}", "danger")
             return render_template(
-                "upload/index.html", firearms=firearms, loads=loads
+                "upload/index.html", firearms=firearms, loads=loads, factory_ammo_lots=factory_ammo_lots
             )
 
         # Create test session from parsed data
@@ -132,6 +137,15 @@ def index():
         # Get optional form data
         firearm_id = request.form.get("firearm_id", "").strip()
         load_id = request.form.get("load_id", "").strip()
+        factory_ammo_lot_id = request.form.get("factory_ammo_lot_id", "").strip()
+        if load_id and factory_ammo_lot_id:
+            flash("Select either a load/recipe or a factory ammo order lot, not both.", "danger")
+            return render_template(
+                "upload/index.html",
+                firearms=firearms,
+                loads=loads,
+                factory_ammo_lots=factory_ammo_lots,
+            )
         location = request.form.get("location", "").strip()
         test_date_str = request.form.get("test_date", "").strip()
         range_distance = request.form.get("range_distance", "").strip()
@@ -153,6 +167,9 @@ def index():
             firearm_id=firearm_id if firearm_id else None,
             test_date=test_date,
             load_id=load_id if load_id else None,
+            factory_ammo_lot_id=(
+                factory_ammo_lot_id if factory_ammo_lot_id else None
+            ),
             location=location or None,
             temperature=temp,
             humidity=humidity,
@@ -198,5 +215,5 @@ def index():
         )
         return redirect(url_for("test_sessions.view", id=session.id))
 
-    return render_template("upload/index.html", firearms=firearms, loads=loads)
+    return render_template("upload/index.html", firearms=firearms, loads=loads, factory_ammo_lots=factory_ammo_lots)
 

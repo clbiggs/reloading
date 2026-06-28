@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from models import db, TestSession, Shot, Firearm, Load
+from models import db, TestSession, Shot, Firearm, Load, OrderLot
 from utils.calculations import calculate_density_altitude
 
 bp = Blueprint("test_sessions", __name__, url_prefix="/test-sessions")
@@ -102,6 +102,7 @@ def view(id):
 def add():
     firearms = Firearm.query.order_by(Firearm.make, Firearm.model).all()
     loads = Load.query.order_by(Load.date_created.desc()).all()
+    factory_ammo_lots = _get_factory_ammo_lot_choices()
     if request.method == "POST":
         data = _get_session_form_data()
         if data is None:
@@ -110,6 +111,7 @@ def add():
                 session=None,
                 firearms=firearms,
                 loads=loads,
+                factory_ammo_lots=factory_ammo_lots,
             )
         session = TestSession(**data)
         db.session.add(session)
@@ -126,6 +128,7 @@ def add():
         session=None,
         firearms=firearms,
         loads=loads,
+        factory_ammo_lots=factory_ammo_lots,
     )
 
 
@@ -134,6 +137,7 @@ def edit(id):
     session = TestSession.query.get_or_404(id)
     firearms = Firearm.query.order_by(Firearm.make, Firearm.model).all()
     loads = Load.query.order_by(Load.date_created.desc()).all()
+    factory_ammo_lots = _get_factory_ammo_lot_choices()
     if request.method == "POST":
         data = _get_session_form_data()
         if data is None:
@@ -142,6 +146,7 @@ def edit(id):
                 session=session,
                 firearms=firearms,
                 loads=loads,
+                factory_ammo_lots=factory_ammo_lots,
             )
         for key, value in data.items():
             setattr(session, key, value)
@@ -158,6 +163,7 @@ def edit(id):
         session=session,
         firearms=firearms,
         loads=loads,
+        factory_ammo_lots=factory_ammo_lots,
     )
 
 
@@ -238,6 +244,14 @@ def delete_shot(shot_id):
     return redirect(url_for("test_sessions.view", id=session_id))
 
 
+def _get_factory_ammo_lot_choices():
+    return (
+        OrderLot.query.filter_by(component_type="factory_ammo")
+        .order_by(OrderLot.order_date.desc())
+        .all()
+    )
+
+
 def _get_session_form_data():
     """Extract and validate test session form data."""
     test_date_str = request.form.get("test_date", "").strip()
@@ -260,7 +274,16 @@ def _get_session_form_data():
     data["firearm_id"] = firearm_id if firearm_id else None
 
     load_id = request.form.get("load_id", "").strip()
+    factory_ammo_lot_id = request.form.get("factory_ammo_lot_id", "").strip()
+
+    if load_id and factory_ammo_lot_id:
+        flash("Select either a load/recipe or a factory ammo order lot, not both.", "danger")
+        return None
+
     data["load_id"] = load_id if load_id else None
+    data["factory_ammo_lot_id"] = (
+        factory_ammo_lot_id if factory_ammo_lot_id else None
+    )
 
     data["location"] = request.form.get("location", "").strip() or None
     data["notes"] = request.form.get("notes", "").strip() or None
@@ -392,9 +415,15 @@ def _format_timestamp(value):
 
 
 def _get_bullet_weight(session):
-    """Get bullet weight in grains from the session's load, if available."""
+    """Get bullet weight in grains from the session ammo source, if available."""
     if session.load and session.load.bullet_lot and session.load.bullet_lot.bullet:
         return session.load.bullet_lot.bullet.weight
+    if (
+        session.factory_ammo_lot
+        and session.factory_ammo_lot.factory_ammo
+        and session.factory_ammo_lot.factory_ammo.weight
+    ):
+        return session.factory_ammo_lot.factory_ammo.weight
 
 
 def _calculate_velocity_metrics(shots):

@@ -554,6 +554,9 @@ class TestSession(db.Model):
     )
     test_date = db.Column(db.DateTime, nullable=False)
     load_id = db.Column(db.String(36), db.ForeignKey("loads.id"), nullable=True)
+    factory_ammo_lot_id = db.Column(
+        db.String(36), db.ForeignKey("order_lots.id"), nullable=True
+    )
     location = db.Column(db.String(200), nullable=True)
     temperature = db.Column(db.Float, nullable=True)  # Fahrenheit
     humidity = db.Column(db.Float, nullable=True)  # percentage
@@ -565,6 +568,9 @@ class TestSession(db.Model):
 
     firearm = db.relationship("Firearm", backref="test_sessions")
     load = db.relationship("Load", backref="test_sessions")
+    factory_ammo_lot = db.relationship(
+        "OrderLot", foreign_keys=[factory_ammo_lot_id], backref="test_sessions"
+    )
 
     @property
     def shot_count(self):

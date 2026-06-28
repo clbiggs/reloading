@@ -38,6 +38,18 @@
             </select>
         </div>
         <div class="col-md-4">
+            <label for="factory_ammo_lot_id" class="form-label">Factory Ammo Order Lot</label>
+            <select class="form-select" id="factory_ammo_lot_id" name="factory_ammo_lot_id">
+                <option value="">None</option>
+                {% for lot in factory_ammo_lots %}
+                {% set ammo = lot.factory_ammo %}
+                <option value="{{ lot.id }}" data-caliber-id="{{ ammo.caliber_id if ammo else '' }}" {% if session and session.factory_ammo_lot_id == lot.id %}selected{% endif %}>
+                    {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
             <label for="location" class="form-label">Location</label>
             <input type="text" class="form-control" id="location" name="location" value="{{ session.location if session else '' }}">
         </div>
@@ -171,46 +183,70 @@ function removeShotRow(button) {
     updateShotNumbers();
 }
 
-function filterLoadsByFirearmCaliber() {
+function filterAmmoSourcesByFirearmCaliber() {
     const firearmSelect = document.getElementById('firearm_id');
-    const loadSelect = document.getElementById('load_id');
-    if (!firearmSelect || !loadSelect) {
+    const sourceSelects = [
+        document.getElementById('load_id'),
+        document.getElementById('factory_ammo_lot_id'),
+    ].filter(Boolean);
+    if (!firearmSelect || !sourceSelects.length) {
         return;
     }
 
     const selectedFirearm = firearmSelect.options[firearmSelect.selectedIndex];
     const selectedCaliberId = selectedFirearm ? selectedFirearm.dataset.caliberId || '' : '';
-    const currentValue = loadSelect.value;
-    let currentValueVisible = false;
 
-    Array.from(loadSelect.options).forEach((option, index) => {
-        if (index === 0) {
-            option.hidden = false;
-            option.disabled = false;
-            return;
-        }
+    sourceSelects.forEach(select => {
+        const currentValue = select.value;
+        let currentValueVisible = false;
 
-        const optionCaliberId = option.dataset.caliberId || '';
-        const shouldShow = !selectedCaliberId || !optionCaliberId || optionCaliberId === selectedCaliberId;
-        option.hidden = !shouldShow;
-        option.disabled = !shouldShow;
+        Array.from(select.options).forEach((option, index) => {
+            if (index === 0) {
+                option.hidden = false;
+                option.disabled = false;
+                return;
+            }
 
-        if (option.value === currentValue && shouldShow) {
-            currentValueVisible = true;
+            const optionCaliberId = option.dataset.caliberId || '';
+            const shouldShow = !selectedCaliberId || !optionCaliberId || optionCaliberId === selectedCaliberId;
+            option.hidden = !shouldShow;
+            option.disabled = !shouldShow;
+
+            if (option.value === currentValue && shouldShow) {
+                currentValueVisible = true;
+            }
+        });
+
+        if (currentValue && !currentValueVisible) {
+            select.value = '';
         }
     });
+}
 
-    if (currentValue && !currentValueVisible) {
-        loadSelect.value = '';
+function syncAmmoSourceSelects(changedSelect) {
+    if (!changedSelect.value) {
+        return;
     }
+    ['load_id', 'factory_ammo_lot_id'].forEach(selectId => {
+        const select = document.getElementById(selectId);
+        if (select && select !== changedSelect) {
+            select.value = '';
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    filterLoadsByFirearmCaliber();
+    filterAmmoSourcesByFirearmCaliber();
     const firearmSelect = document.getElementById('firearm_id');
     if (firearmSelect) {
-        firearmSelect.addEventListener('change', filterLoadsByFirearmCaliber);
+        firearmSelect.addEventListener('change', filterAmmoSourcesByFirearmCaliber);
     }
+    ['load_id', 'factory_ammo_lot_id'].forEach(selectId => {
+        const select = document.getElementById(selectId);
+        if (select) {
+            select.addEventListener('change', () => syncAmmoSourceSelects(select));
+        }
+    });
 });
 </script>
 {% endblock %}
