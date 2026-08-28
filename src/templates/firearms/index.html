@@ -12,6 +12,7 @@
                     <tr>
                         <th>Make</th>
                         <th>Model</th>
+                        <th>Serial Number</th>
                         <th>Caliber</th>
                         <th class="d-none d-md-table-cell">Barrel (in)</th>
                         <th class="d-none d-md-table-cell">Twist Rate</th>
@@ -23,6 +24,7 @@
                     <tr>
                         <td>{{ f.make }}</td>
                         <td>{{ f.model }}</td>
+                        <td>{{ f.serial_number or "—" }}</td>
                         <td>{{ f.caliber.name }}</td>
                         <td class="d-none d-md-table-cell">{{ "%.2f"|format(f.barrel_length) if f.barrel_length else "—" }}</td>
                         <td class="d-none d-md-table-cell">{{ f.twist_rate or "—" }}</td>

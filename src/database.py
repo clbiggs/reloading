@@ -125,6 +125,12 @@ def _run_migrations(db_path):
         # as SQLite cannot drop columns with FK constraints.
         # SQLAlchemy will simply ignore the unmapped column.
 
+    # Migration: add serial_number to firearms
+    if _table_exists(db_path, "firearms"):
+        cols = _get_table_columns(db_path, "firearms")
+        if "serial_number" not in cols:
+            conn.execute("ALTER TABLE firearms ADD COLUMN serial_number VARCHAR(50)")
+
     conn.commit()
     conn.close()
 

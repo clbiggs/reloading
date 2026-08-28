@@ -82,6 +82,7 @@ def _get_form_data():
             flash("Barrel length must be a number.", "danger")
             return None
 
+    data["serial_number"] = request.form.get("serial_number", "").strip() or None
     data["twist_rate"] = request.form.get("twist_rate", "").strip() or None
     data["notes"] = request.form.get("notes", "").strip() or None
 

@@ -757,6 +757,7 @@ class Firearm(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
     make = db.Column(db.String(100), nullable=False)
     model = db.Column(db.String(100), nullable=False)
+    serial_number = db.Column(db.String(50), nullable=True)
     caliber_id = db.Column(db.Integer, db.ForeignKey("calibers.id"), nullable=False)
     barrel_length = db.Column(db.Float, nullable=True)  # inches
     twist_rate = db.Column(db.String(20), nullable=True)

@@ -16,6 +16,10 @@
                     <input type="text" class="form-control" id="model" name="model" value="{{ firearm.model if firearm else '' }}" required>
                 </div>
                 <div class="col-md-4">
+                    <label for="serial_number" class="form-label">Serial Number</label>
+                    <input type="text" class="form-control" id="serial_number" name="serial_number" value="{{ firearm.serial_number if firearm and firearm.serial_number else '' }}">
+                </div>
+                <div class="col-md-4">
                     <label for="caliber_id" class="form-label">Caliber <span class="text-danger">*</span></label>
                     <select class="form-select" id="caliber_id" name="caliber_id" required>
                         <option value="">Select caliber...</option>
