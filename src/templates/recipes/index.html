@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% from "macros.html" import delete_button, empty_state, page_header %}
+{% block title %}Recipes - Reloading Tracker{% endblock %}
+{% block content %}
+{{ page_header("Recipes", url_for('recipes.add'), "Add Recipe") }}
+
+{# --- Filter Panel --- #}
+{% set has_filters = current_filters.name or current_filters.bullet_id or current_filters.powder_id or current_filters.primer_id or current_filters.casing_id or current_filters.caliber_id or current_filters.testing or current_filters.abandoned %}
+<div class="card mb-3">
+    <div class="card-header p-2">
+        <button class="btn btn-sm btn-link text-decoration-none w-100 text-start d-flex justify-content-between align-items-center"
+                type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel"
+                aria-expanded="{{ 'true' if has_filters else 'false' }}">
+            <span>
+                <i class="bi bi-funnel"></i> Filters
+                {% if has_filters %}
+                    <span class="badge bg-primary ms-1">Active</span>
+                {% endif %}
+            </span>
+            <i class="bi bi-chevron-down"></i>
+        </button>
+    </div>
+    <div class="collapse{{ ' show' if has_filters else '' }}" id="filterPanel">
+        <div class="card-body p-3">
+            <form method="GET" action="{{ url_for('recipes.index') }}">
+                <input type="hidden" name="sort" value="{{ current_sort }}">
+                <input type="hidden" name="sort_dir" value="{{ current_sort_dir }}">
+                <div class="row g-2">
+                    <div class="col-sm-6 col-md-2">
+                        <label for="filter-name" class="form-label form-label-sm mb-1">Name</label>
+                        <input type="text" name="name" id="filter-name" class="form-control form-control-sm" value="{{ current_filters.name }}" placeholder="Search...">
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label for="filter-caliber" class="form-label form-label-sm mb-1">Caliber</label>
+                        <select name="caliber_id" id="filter-caliber" class="form-select form-select-sm">
+                            <option value="">All Calibers</option>
+                            {% for c in calibers %}
+                                <option value="{{ c.id }}" {{ 'selected' if current_filters.caliber_id == c.id|string }}>{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label for="filter-bullet" class="form-label form-label-sm mb-1">Bullet</label>
+                        <select name="bullet_id" id="filter-bullet" class="form-select form-select-sm">
+                            <option value="">All Bullets</option>
+                            {% for b in bullets %}
+                                <option value="{{ b.id }}" {{ 'selected' if current_filters.bullet_id == b.id }}>{{ b.manufacturer.name }} {{ b.model }} ({{ "%.0f"|format(b.weight) }}gr)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label for="filter-powder" class="form-label form-label-sm mb-1">Powder</label>
+                        <select name="powder_id" id="filter-powder" class="form-select form-select-sm">
+                            <option value="">All Powders</option>
+                            {% for p in powders %}
+                                <option value="{{ p.id }}" {{ 'selected' if current_filters.powder_id == p.id }}>{{ p.manufacturer.name }} {{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label for="filter-primer" class="form-label form-label-sm mb-1">Primer</label>
+                        <select name="primer_id" id="filter-primer" class="form-select form-select-sm">
+                            <option value="">All Primers</option>
+                            {% for p in primers %}
+                                <option value="{{ p.id }}" {{ 'selected' if current_filters.primer_id == p.id }}>{{ p.manufacturer.name }} {{ p.model }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label for="filter-casing" class="form-label form-label-sm mb-1">Casing</label>
+                        <select name="casing_id" id="filter-casing" class="form-select form-select-sm">
+                            <option value="">All Casings</option>
+                            {% for c in casings %}
+                                <option value="{{ c.id }}" {{ 'selected' if current_filters.casing_id == c.id }}>{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label for="filter-testing" class="form-label form-label-sm mb-1">Testing</label>
+                        <select name="testing" id="filter-testing" class="form-select form-select-sm">
+                            <option value="">All</option>
+                            <option value="yes" {{ 'selected' if current_filters.testing == 'yes' }}>Testing only</option>
+                            <option value="no" {{ 'selected' if current_filters.testing == 'no' }}>Exclude testing</option>
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-md-2">
+                        <label for="filter-abandoned" class="form-label form-label-sm mb-1">Abandoned</label>
+                        <select name="abandoned" id="filter-abandoned" class="form-select form-select-sm">
+                            <option value="">All</option>
+                            <option value="yes" {{ 'selected' if current_filters.abandoned == 'yes' }}>Abandoned only</option>
+                            <option value="no" {{ 'selected' if current_filters.abandoned == 'no' }}>Exclude abandoned</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    <button type="submit" class="btn btn-sm btn-primary">
+                        <i class="bi bi-funnel"></i> Apply
+                    </button>
+                    {% if has_filters %}
+                        <a href="{{ url_for('recipes.index', sort=current_sort, sort_dir=current_sort_dir) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-x-lg"></i> Clear
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# --- Sort URL Helper Macro --- #}
+{% macro sort_header(label, field, extra_classes="") %}
+    {%- set new_dir = "asc" if current_sort == field and current_sort_dir == "desc" else "desc" -%}
+    <a href="{{ url_for('recipes.index',
+            sort=field, sort_dir=new_dir,
+            name=current_filters.name,
+            bullet_id=current_filters.bullet_id,
+            powder_id=current_filters.powder_id,
+            primer_id=current_filters.primer_id,
+            casing_id=current_filters.casing_id,
+            caliber_id=current_filters.caliber_id,
+            testing=current_filters.testing,
+            abandoned=current_filters.abandoned) }}"
+       class="text-decoration-none text-reset d-inline-flex align-items-center gap-1 {{ extra_classes }}">
+        {{ label }}
+        {%- if current_sort == field %}
+            <i class="bi bi-sort-{{ 'up' if current_sort_dir == 'asc' else 'down' }}"></i>
+        {%- endif %}
+    </a>
+{% endmacro %}
+
+{# --- Recipes Table --- #}
+<div class="card">
+    <div class="card-body p-0">
+        {% if recipes %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ sort_header("Name", "name") }}</th>
+                        <th>Caliber</th>
+                        <th>Bullet</th>
+                        <th>Powder</th>
+                        <th class="d-none d-md-table-cell">{{ sort_header("Powder Wt (gr)", "powder_weight") }}</th>
+                        <th class="d-none d-md-table-cell">Primer</th>
+                        <th class="d-none d-lg-table-cell">Casing</th>
+                        <th class="text-end d-none d-md-table-cell">{{ sort_header("Loads", "load_count") }}</th>
+                        <th class="text-end" style="width:150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in recipes %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('recipes.view', id=r.id) }}" class="text-decoration-none fw-semibold">{{ r.name }}</a>
+                            {% if r.is_abandoned %}
+                                <span class="badge bg-secondary ms-1">Abandoned</span>
+                            {% endif %}
+                            {% if r.is_testing %}
+                                <span class="badge bg-info text-dark ms-1">Testing</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.caliber.name if r.caliber else "—" }}</td>
+                        <td>{{ r.bullet_display or "—" }}</td>
+                        <td>{{ r.powder_display or "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ "%.2f"|format(r.powder_weight) if r.powder_weight else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ r.primer_display or "—" }}</td>
+                        <td class="d-none d-lg-table-cell">{{ r.casing_display or "—" }}</td>
+                        <td class="text-end d-none d-md-table-cell">{{ r.loads|length }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('recipes.view', id=r.id) }}" class="btn btn-outline-info btn-action" title="View"><i class="bi bi-eye"></i></a>
+                            <a href="{{ url_for('recipes.edit', id=r.id) }}" class="btn btn-outline-primary btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                            {{ delete_button(url_for('recipes.delete', id=r.id), "this recipe") }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            {{ empty_state("recipes", url_for('recipes.add')) }}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

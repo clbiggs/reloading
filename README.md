@@ -6,7 +6,8 @@ A web application for managing and tracking ammunition reloading data. Built wit
 
 - **Component Management** — Manage calibers, primer types, manufacturers, bullets, primers, powders, casings, and factory ammo with full CRUD operations
 - **Order Lot Tracking** — Track purchases of bullets, powder, primers, casings, and factory ammo with lot numbers, costs, and quantities
-- **Load/Recipe Builder** — Create and manage load recipes linking specific component order lots with powder weights and measurements
+- **Recipe Management** — Create reusable recipes with a custom name, component selection, and powder charge weight
+- **Load Tracking** — Create loads from a recipe, linking the component order lots used with batch measurements, discarded component waste, and true cost per round
 - **Firearm Registry** — Track firearms with caliber, barrel length, twist rate, and notes
 - **Test Sessions** — Record chronograph test sessions with weather data, shot groups, and individual shot velocities
 - **Chronograph Import** — Upload `.xlsx` exports from the Velocity Pro Radar Chronograph to automatically create test sessions with shot data
@@ -54,7 +55,7 @@ The application supports importing `.xlsx` files exported from the **Velocity Pr
 - Individual shot data (velocity, deviation, kinetic energy, power factor, timestamps)
 - Clean bore / cold bore indicators (stored as trace data)
 
-During import, you can optionally associate the session with a firearm, load/recipe, location, and range distance.
+During import, you can optionally associate the session with a firearm, load, location, and range distance.
 
 ## Project Structure
 

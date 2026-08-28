@@ -13,7 +13,7 @@
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-md-3">
+    <div class="col-6 col-md-3 col-xl">
         <div class="card stat-card primary h-100">
             <div class="card-body">
                 <div class="text-muted small text-uppercase">Component</div>
@@ -22,7 +22,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3 col-xl">
         <div class="card stat-card info h-100">
             <div class="card-body">
                 <div class="text-muted small text-uppercase">Lot Quantity</div>
@@ -31,7 +31,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3 col-xl">
         <div class="card stat-card success h-100">
             <div class="card-body">
                 <div class="text-muted small text-uppercase">Tracked Used</div>
@@ -42,11 +42,26 @@
                         —
                     {% endif %}
                 </div>
-                <div class="small text-muted">Across all linked loads</div>
+                <div class="small text-muted">Across all linked loads (incl. discarded)</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3 col-xl">
+        <div class="card stat-card danger h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Discarded</div>
+                <div class="stat-value fs-4">
+                    {% if order_lot.tracked_discarded_units %}
+                        {{ "%.2f"|format(order_lot.tracked_discarded_units) }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+                <div class="small text-muted">{{ order_lot.usage_unit_label }} wasted by loads</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl">
         <div class="card stat-card {{ 'warning' if order_lot.is_depleted else 'success' }} h-100">
             <div class="card-body">
                 <div class="text-muted small text-uppercase">{{ 'Estimated Remaining' if not order_lot.is_depleted else 'Untracked / Waste' }}</div>
@@ -81,6 +96,14 @@
                     <dd class="col-sm-8">{{ order_lot.quantity }}{% if order_lot.component_type == 'powder' %} lb{% endif %}</dd>
                     <dt class="col-sm-4">Total Usable Units</dt>
                     <dd class="col-sm-8">{{ "%.2f"|format(order_lot.total_units) if order_lot.total_units is not none else '—' }} {{ order_lot.usage_unit_label }}</dd>
+                    <dt class="col-sm-4">Discarded Units</dt>
+                    <dd class="col-sm-8">
+                        {% if order_lot.tracked_discarded_units %}
+                            {{ "%.2f"|format(order_lot.tracked_discarded_units) }} {{ order_lot.usage_unit_label }}
+                        {% else %}
+                            <span class="text-muted">None recorded</span>
+                        {% endif %}
+                    </dd>
                     <dt class="col-sm-4">Total Cost</dt>
                     <dd class="col-sm-8">{{ "$%.2f"|format(order_lot.total_cost) if order_lot.total_cost is not none else '—' }}</dd>
                     <dt class="col-sm-4">Cost / {{ 'Grain' if order_lot.component_type == 'powder' else 'Unit' }}</dt>
@@ -167,10 +190,12 @@
                         <th>Load</th>
                         <th class="text-end">Rounds</th>
                         <th class="text-end">Used</th>
+                        <th class="text-end">Discarded</th>
                         <th class="text-end">Lot %</th>
                         <th style="width: 220px;">Usage Graph</th>
                         <th class="text-end">Est. Batch Cost</th>
                         <th class="text-end">Est. Cost/Rd</th>
+                        <th class="text-end">True Cost/Rd</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -180,13 +205,20 @@
                         <td>{{ load.date_created.strftime('%Y-%m-%d') }}</td>
                         <td>
                             <a href="{{ url_for('loads.view', id=load.id) }}" class="text-decoration-none">
-                                {{ load.bullet_lot.bullet.manufacturer.name ~ ' ' ~ load.bullet_lot.bullet.model if load.bullet_lot and load.bullet_lot.bullet else 'Load ' ~ load.id[:8] }}
+                                {{ load.recipe.name if load.recipe else 'Load ' ~ load.id[:8] }}
                             </a>
                         </td>
                         <td class="text-end">{{ detail.rounds_made if detail.rounds_made else '—' }}</td>
                         <td class="text-end">
                             {% if detail.consumed_units is not none %}
                                 {{ "%.2f"|format(detail.consumed_units) }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if detail.discarded_units %}
+                                <span class="text-warning">{{ "%.2f"|format(detail.discarded_units) }}</span>
                             {% else %}
                                 —
                             {% endif %}
@@ -211,6 +243,7 @@
                         </td>
                         <td class="text-end">{{ "$%.2f"|format(detail.estimated_batch_cost) if detail.estimated_batch_cost is not none else '—' }}</td>
                         <td class="text-end">{{ "$%.2f"|format(detail.estimated_per_round_cost) if detail.estimated_per_round_cost is not none else '—' }}</td>
+                        <td class="text-end">{{ "$%.2f"|format(detail.true_per_round_cost) if detail.true_per_round_cost is not none else '—' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -253,7 +286,7 @@
                         <td>{{ detail.load.date_created.strftime('%Y-%m-%d') if detail.load.date_created else '—' }}</td>
                         <td>
                             <a href="{{ url_for('loads.view', id=detail.load.id) }}" class="text-decoration-none">
-                                {{ detail.load.bullet_lot.bullet.manufacturer.name ~ ' ' ~ detail.load.bullet_lot.bullet.model if detail.load.bullet_lot and detail.load.bullet_lot.bullet else 'Load ' ~ detail.load.id[:8] }}
+                                {{ detail.load.recipe.name if detail.load.recipe else 'Load ' ~ detail.load.id[:8] }}
                             </a>
                         </td>
                         <td class="text-end">{{ "%.1f"|format(detail.usage_percentage) if detail.usage_percentage is not none else '—' }}%</td>

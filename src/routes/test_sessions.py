@@ -277,7 +277,7 @@ def _get_session_form_data():
     factory_ammo_lot_id = request.form.get("factory_ammo_lot_id", "").strip()
 
     if load_id and factory_ammo_lot_id:
-        flash("Select either a load/recipe or a factory ammo order lot, not both.", "danger")
+        flash("Select either a load or a factory ammo order lot, not both.", "danger")
         return None
 
     data["load_id"] = load_id if load_id else None

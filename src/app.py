@@ -25,6 +25,7 @@ def create_app():
         powders,
         factory_ammo,
         order_lots,
+        recipes,
         loads,
         firearms,
         test_sessions,
@@ -42,6 +43,7 @@ def create_app():
     app.register_blueprint(powders.bp)
     app.register_blueprint(factory_ammo.bp)
     app.register_blueprint(order_lots.bp)
+    app.register_blueprint(recipes.bp)
     app.register_blueprint(loads.bp)
     app.register_blueprint(firearms.bp)
     app.register_blueprint(test_sessions.bp)

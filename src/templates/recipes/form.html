@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "macros.html" import form_actions %}
+{% block title %}{{ "Edit" if recipe else "Add" }} Recipe - Reloading Tracker{% endblock %}
+{% block content %}
+<h2>{{ "Edit" if recipe else "Add" }} Recipe</h2>
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="POST">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="name" class="form-label">Recipe Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="name" name="name" required
+                           value="{{ recipe.name if recipe else '' }}"
+                           placeholder="e.g. 9mm 147gr Subsonic">
+                </div>
+                <div class="col-md-3">
+                    <label for="powder_weight" class="form-label">Powder Weight (grains)</label>
+                    <input type="number" step="0.01" class="form-control" id="powder_weight" name="powder_weight"
+                           value="{{ '%.2f'|format(recipe.powder_weight) if recipe and recipe.powder_weight else '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label for="bullet_id" class="form-label">Bullet</label>
+                    <select class="form-select" id="bullet_id" name="bullet_id">
+                        <option value="">None</option>
+                        {% for b in bullets %}
+                        <option value="{{ b.id }}" {% if recipe and recipe.bullet_id == b.id %}selected{% endif %}>
+                            {{ b.manufacturer.name }} {{ b.model }} ({{ "%.2f"|format(b.weight) }}gr)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="powder_id" class="form-label">Powder</label>
+                    <select class="form-select" id="powder_id" name="powder_id">
+                        <option value="">None</option>
+                        {% for p in powders %}
+                        <option value="{{ p.id }}" {% if recipe and recipe.powder_id == p.id %}selected{% endif %}>
+                            {{ p.manufacturer.name }} {{ p.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="primer_id" class="form-label">Primer</label>
+                    <select class="form-select" id="primer_id" name="primer_id">
+                        <option value="">None</option>
+                        {% for p in primers %}
+                        <option value="{{ p.id }}" {% if recipe and recipe.primer_id == p.id %}selected{% endif %}>
+                            {{ p.manufacturer.name }} {{ p.model }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="casing_id" class="form-label">Casing</label>
+                    <select class="form-select" id="casing_id" name="casing_id">
+                        <option value="">None</option>
+                        {% for c in casings %}
+                        <option value="{{ c.id }}" {% if recipe and recipe.casing_id == c.id %}selected{% endif %}>
+                            {{ c.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label for="notes" class="form-label">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3">{{ recipe.notes if recipe and recipe.notes else '' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="is_testing" name="is_testing" {% if recipe and recipe.is_testing %}checked{% endif %}>
+                        <label class="form-check-label" for="is_testing">Testing <span class="text-muted small">(still being developed)</span></label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="is_abandoned" name="is_abandoned" {% if recipe and recipe.is_abandoned %}checked{% endif %}>
+                        <label class="form-check-label" for="is_abandoned">Abandoned <span class="text-muted small">(hidden from new load picklist)</span></label>
+                    </div>
+                </div>
+            </div>
+            {{ form_actions(recipe and url_for('recipes.view', id=recipe.id) or url_for('recipes.index')) }}
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% from "macros.html" import delete_button, empty_state, page_header %}
-{% block title %}Loads/Recipes - Reloading Tracker{% endblock %}
+{% block title %}Loads - Reloading Tracker{% endblock %}
 {% block content %}
-{{ page_header("Loads / Recipes", url_for('loads.add'), "Add Load") }}
+{{ page_header("Loads", url_for('loads.add'), "Add Load") }}
 
 {# --- Filter Panel --- #}
 {% set has_filters = current_filters.bullet_id or current_filters.powder_id or current_filters.primer_id or current_filters.caliber_id %}
@@ -105,9 +105,9 @@
                 <thead>
                     <tr>
                         <th>{{ sort_header("Date", "date") }}</th>
-                        <th>Bullet</th>
-                        <th>Powder</th>
+                        <th>Recipe</th>
                         <th class="d-none d-md-table-cell">{{ sort_header("Powder Wt (gr)", "powder_weight") }}</th>
+                        <th class="d-none d-md-table-cell">Rounds</th>
                         <th class="d-none d-md-table-cell">OAL (in)</th>
                         <th class="d-none d-md-table-cell text-end">{{ sort_header("Cost/Rd", "cost") }}</th>
                         <th class="text-end" style="width:150px;">Actions</th>
@@ -118,20 +118,20 @@
                     <tr>
                         <td>{{ l.date_created.strftime('%Y-%m-%d') }}</td>
                         <td>
-                            {% if l.bullet_lot and l.bullet_lot.bullet %}
-                                {{ l.bullet_lot.bullet.manufacturer.name }} {{ l.bullet_lot.bullet.model }}
-                            {% else %}
-                                <span class="text-muted">—</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if l.powder_lot and l.powder_lot.powder %}
-                                {{ l.powder_lot.powder.manufacturer.name }} {{ l.powder_lot.powder.name }}
+                            {% if l.recipe %}
+                                <a href="{{ url_for('recipes.view', id=l.recipe.id) }}" class="text-decoration-none fw-semibold">{{ l.recipe.name }}</a>
+                                {% if l.recipe.is_abandoned %}
+                                    <span class="badge bg-secondary ms-1">Abandoned</span>
+                                {% endif %}
+                                {% if l.recipe.is_testing %}
+                                    <span class="badge bg-info text-dark ms-1">Testing</span>
+                                {% endif %}
                             {% else %}
                                 <span class="text-muted">—</span>
                             {% endif %}
                         </td>
                         <td class="d-none d-md-table-cell">{{ "%.2f"|format(l.powder_weight) if l.powder_weight else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ l.rounds_made if l.rounds_made else "—" }}</td>
                         <td class="d-none d-md-table-cell">{{ "%.4f"|format(l.overall_length) if l.overall_length else "—" }}</td>
                         <td class="d-none d-md-table-cell text-end">{{ "$%.2f"|format(l.cost_per_round) if l.cost_per_round is not none else "—" }}</td>
                         <td class="text-end">
@@ -145,9 +145,8 @@
             </table>
         </div>
         {% else %}
-            {{ empty_state("loads/recipes", url_for('loads.add')) }}
+            {{ empty_state("loads", url_for('loads.add')) }}
         {% endif %}
     </div>
 </div>
 {% endblock %}
-

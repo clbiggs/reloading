@@ -1,8 +1,8 @@
-"""Routes for managing loads/recipes."""
+"""Routes for managing loads."""
 
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from models import db, Load, OrderLot, Bullet, Powder, Primer, Caliber
+from models import db, Load, Recipe, OrderLot, Bullet, Powder, Primer, Casing, Caliber
 
 bp = Blueprint("loads", __name__, url_prefix="/loads")
 
@@ -28,6 +28,19 @@ def _get_lot_choices(load=None):
     }
 
 
+def _get_recipe_choices(current_recipe_id=None):
+    """Recipe choices for load forms; abandoned recipes are hidden unless
+    they are the recipe already selected on the load being edited."""
+    query = Recipe.query
+    if current_recipe_id:
+        query = query.filter(
+            db.or_(Recipe.is_abandoned == False, Recipe.id == current_recipe_id)
+        )
+    else:
+        query = query.filter(Recipe.is_abandoned == False)
+    return query.order_by(Recipe.name).all()
+
+
 @bp.route("/")
 def index():
     # --- Filters ---
@@ -36,40 +49,21 @@ def index():
     primer_id = request.args.get("primer_id", "").strip()
     caliber_id = request.args.get("caliber_id", "").strip()
 
-    query = Load.query
+    query = Load.query.join(Recipe, Load.recipe_id == Recipe.id, isouter=True)
 
     if bullet_id:
-        query = query.join(
-            OrderLot, Load.bullet_lot_id == OrderLot.id
-        ).filter(OrderLot.bullet_id == bullet_id)
+        query = query.filter(Recipe.bullet_id == bullet_id)
 
     if powder_id:
-        powder_lot = db.aliased(OrderLot)
-        query = query.join(
-            powder_lot, Load.powder_lot_id == powder_lot.id
-        ).filter(powder_lot.powder_id == powder_id)
+        query = query.filter(Recipe.powder_id == powder_id)
 
     if primer_id:
-        primer_lot = db.aliased(OrderLot)
-        query = query.join(
-            primer_lot, Load.primer_lot_id == primer_lot.id
-        ).filter(primer_lot.primer_id == primer_id)
+        query = query.filter(Recipe.primer_id == primer_id)
 
     if caliber_id:
-        if not bullet_id:
-            # Need to join bullet_lot if not already joined
-            bullet_lot_cal = db.aliased(OrderLot)
-            bullet_cal = db.aliased(Bullet)
-            query = query.join(
-                bullet_lot_cal, Load.bullet_lot_id == bullet_lot_cal.id
-            ).join(
-                bullet_cal, bullet_lot_cal.bullet_id == bullet_cal.id
-            ).filter(bullet_cal.caliber_id == caliber_id)
-        else:
-            # Already joined OrderLot for bullet, just join Bullet
-            query = query.join(
-                Bullet, OrderLot.bullet_id == Bullet.id
-            ).filter(Bullet.caliber_id == caliber_id)
+        query = query.join(
+            Bullet, Recipe.bullet_id == Bullet.id, isouter=True
+        ).filter(Bullet.caliber_id == caliber_id)
 
     # --- Sorting ---
     sort = request.args.get("sort", "date").strip()
@@ -87,7 +81,7 @@ def index():
         )
     else:
         if sort == "powder_weight":
-            order_col = Load.powder_weight
+            order_col = Recipe.powder_weight
         else:
             # Default to date
             sort = "date"
@@ -144,23 +138,45 @@ def view(id):
 @bp.route("/add", methods=["GET", "POST"])
 def add():
     lots = _get_lot_choices()
+    recipes = _get_recipe_choices(request.args.get("recipe_id"))
+    bullets = Bullet.query.join(Bullet.manufacturer).order_by(
+        db.text("manufacturers.name"), Bullet.model, Bullet.weight
+    ).all()
+    powders = Powder.query.join(Powder.manufacturer).order_by(
+        db.text("manufacturers.name"), Powder.name
+    ).all()
+    primers = Primer.query.join(Primer.manufacturer).order_by(
+        db.text("manufacturers.name"), Primer.model
+    ).all()
+    casings = Casing.query.order_by(Casing.name).all()
 
     if request.method == "POST":
-        data = _get_form_data()
-        if data is None:
+        recipe = _get_recipe_from_form()
+        data = _get_form_data() if recipe else None
+        if recipe is None or data is None:
             return render_template(
                 "loads/form.html",
                 load=None,
+                recipes=recipes,
+                bullets=bullets,
+                powders=powders,
+                primers=primers,
+                casings=casings,
                 **lots,
             )
-        load = Load(**data)
+        load = Load(recipe_id=recipe.id, **data)
         db.session.add(load)
         db.session.commit()
-        flash("Load/Recipe added.", "success")
+        flash("Load added.", "success")
         return redirect(url_for("loads.index"))
     return render_template(
         "loads/form.html",
         load=None,
+        recipes=recipes,
+        bullets=bullets,
+        powders=powders,
+        primers=primers,
+        casings=casings,
         **lots,
     )
 
@@ -169,23 +185,46 @@ def add():
 def edit(id):
     load = Load.query.get_or_404(id)
     lots = _get_lot_choices(load)
+    recipes = _get_recipe_choices(load.recipe_id)
+    bullets = Bullet.query.join(Bullet.manufacturer).order_by(
+        db.text("manufacturers.name"), Bullet.model, Bullet.weight
+    ).all()
+    powders = Powder.query.join(Powder.manufacturer).order_by(
+        db.text("manufacturers.name"), Powder.name
+    ).all()
+    primers = Primer.query.join(Primer.manufacturer).order_by(
+        db.text("manufacturers.name"), Primer.model
+    ).all()
+    casings = Casing.query.order_by(Casing.name).all()
 
     if request.method == "POST":
-        data = _get_form_data()
-        if data is None:
+        recipe = _get_recipe_from_form()
+        data = _get_form_data() if recipe else None
+        if recipe is None or data is None:
             return render_template(
                 "loads/form.html",
                 load=load,
+                recipes=recipes,
+                bullets=bullets,
+                powders=powders,
+                primers=primers,
+                casings=casings,
                 **lots,
             )
+        load.recipe_id = recipe.id
         for key, value in data.items():
             setattr(load, key, value)
         db.session.commit()
-        flash("Load/Recipe updated.", "success")
+        flash("Load updated.", "success")
         return redirect(url_for("loads.index"))
     return render_template(
         "loads/form.html",
         load=load,
+        recipes=recipes,
+        bullets=bullets,
+        powders=powders,
+        primers=primers,
+        casings=casings,
         **lots,
     )
 
@@ -195,8 +234,54 @@ def delete(id):
     load = Load.query.get_or_404(id)
     db.session.delete(load)
     db.session.commit()
-    flash("Load/Recipe deleted.", "success")
+    flash("Load deleted.", "success")
     return redirect(url_for("loads.index"))
+
+
+def _get_recipe_from_form():
+    """Resolve the recipe for a load from the form.
+
+    Either selects an existing recipe or creates a new one inline.
+    Returns None (after flashing an error) when validation fails.
+    """
+    mode = request.form.get("recipe_mode", "existing").strip()
+
+    if mode == "new":
+        name = request.form.get("new_recipe_name", "").strip()
+        if not name:
+            flash("Recipe name is required when creating a new recipe.", "danger")
+            return None
+
+        recipe = Recipe(name=name)
+
+        powder_weight = request.form.get("new_powder_weight", "").strip()
+        if powder_weight:
+            try:
+                recipe.powder_weight = round(float(powder_weight), 2)
+            except ValueError:
+                flash("Powder weight must be a number.", "danger")
+                return None
+
+        for field in ("bullet_id", "powder_id", "primer_id", "casing_id"):
+            value = request.form.get(f"new_{field}", "").strip()
+            if value:
+                setattr(recipe, field, value)
+
+        db.session.add(recipe)
+        db.session.flush()
+        return recipe
+
+    recipe_id = request.form.get("recipe_id", "").strip()
+    if not recipe_id:
+        flash("Select an existing recipe or choose to create a new one.", "danger")
+        return None
+
+    recipe = Recipe.query.get(recipe_id)
+    if recipe is None:
+        flash("Selected recipe no longer exists.", "danger")
+        return None
+
+    return recipe
 
 
 def _get_form_data():
@@ -209,21 +294,31 @@ def _get_form_data():
     powder_lot_id = request.form.get("powder_lot_id", "").strip()
     data["powder_lot_id"] = powder_lot_id if powder_lot_id else None
 
-    powder_weight = request.form.get("powder_weight", "").strip()
-    if powder_weight:
-        try:
-            data["powder_weight"] = round(float(powder_weight), 2)
-        except ValueError:
-            flash("Powder weight must be a number.", "danger")
-            return None
-    else:
-        data["powder_weight"] = None
-
     primer_lot_id = request.form.get("primer_lot_id", "").strip()
     data["primer_lot_id"] = primer_lot_id if primer_lot_id else None
 
     casing_lot_id = request.form.get("casing_lot_id", "").strip()
     data["casing_lot_id"] = casing_lot_id if casing_lot_id else None
+
+    for field, label, cast, precision in (
+        ("discarded_bullet", "Discarded bullets", int, None),
+        ("discarded_powder", "Discarded powder", float, 2),
+        ("discarded_primer", "Discarded primers", int, None),
+        ("discarded_casing", "Discarded casings", int, None),
+    ):
+        raw = request.form.get(field, "").strip()
+        if raw:
+            try:
+                value = cast(raw)
+            except ValueError:
+                flash(f"{label} must be a number.", "danger")
+                return None
+            if value < 0:
+                flash(f"{label} cannot be negative.", "danger")
+                return None
+            data[field] = round(value, precision) if precision else value
+        else:
+            data[field] = None
 
     rounds_made = request.form.get("rounds_made", "").strip()
     if rounds_made:
@@ -274,4 +369,3 @@ def _get_form_data():
         data["date_created"] = datetime.now(timezone.utc)
 
     return data
-

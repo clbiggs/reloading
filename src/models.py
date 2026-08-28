@@ -268,19 +268,25 @@ class OrderLot(db.Model):
 
             consumed_units = usage["consumed_units"] if usage else None
             usage_percentage = usage["percentage"] if usage else None
+            discarded_units = usage["discarded_units"] if usage else None
             component_batch_cost = load.batch_cost_breakdown.get(self.component_type)
             estimated_batch_cost = load.batch_cost_breakdown.get("total")
             estimated_per_round = load.cost_breakdown.get("total")
+            true_batch_cost = load.true_batch_cost_breakdown.get("total")
+            true_per_round = load.true_cost_breakdown.get("total")
 
             details.append(
                 {
                     "load": load,
                     "consumed_units": consumed_units,
+                    "discarded_units": discarded_units,
                     "total_units": total_units,
                     "usage_percentage": usage_percentage,
                     "estimated_component_batch_cost": component_batch_cost,
                     "estimated_batch_cost": estimated_batch_cost,
                     "estimated_per_round_cost": estimated_per_round,
+                    "true_batch_cost": true_batch_cost,
+                    "true_per_round_cost": true_per_round,
                     "rounds_made": load.rounds_made,
                 }
             )
@@ -288,14 +294,32 @@ class OrderLot(db.Model):
         return details
 
     @property
+    def total_discarded_units(self):
+        """Sum of units recorded as discarded on related loads."""
+        return sum(load.discarded_for(self.component_type) for load in self.related_loads)
+
+    @property
     def tracked_used_units(self):
-        """Sum of all known lot units consumed by tracked loads."""
+        """Sum of all known lot units consumed by tracked loads.
+
+        Includes components recorded as discarded on loads.
+        """
         used_values = [
             detail["consumed_units"]
             for detail in self.load_usage_details
             if detail["consumed_units"] is not None
         ]
         return sum(used_values) if used_values else 0
+
+    @property
+    def tracked_discarded_units(self):
+        """Sum of discarded units recorded by tracked loads for this lot."""
+        discarded = [
+            detail["discarded_units"]
+            for detail in self.load_usage_details
+            if detail["discarded_units"]
+        ]
+        return sum(discarded) if discarded else 0
 
     @property
     def tracked_used_percentage(self):
@@ -379,16 +403,73 @@ class OrderLot(db.Model):
         return f"<OrderLot {self.id} {self.component_type}>"
 
 
+class Recipe(db.Model):
+    """A reusable recipe describing the components and powder charge weight."""
+
+    __tablename__ = "recipes"
+    id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    name = db.Column(db.String(200), nullable=False)
+    bullet_id = db.Column(db.String(36), db.ForeignKey("bullets.id"), nullable=True)
+    powder_id = db.Column(db.String(36), db.ForeignKey("powders.id"), nullable=True)
+    primer_id = db.Column(db.String(36), db.ForeignKey("primers.id"), nullable=True)
+    casing_id = db.Column(db.String(36), db.ForeignKey("casings.id"), nullable=True)
+    powder_weight = db.Column(db.Float, nullable=True)  # grains, 2 decimal places
+    notes = db.Column(db.Text, nullable=True)
+    is_testing = db.Column(db.Boolean, nullable=False, default=False)
+    is_abandoned = db.Column(db.Boolean, nullable=False, default=False)
+    date_created = db.Column(
+        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    bullet = db.relationship("Bullet", backref="recipes")
+    powder = db.relationship("Powder", backref="recipes")
+    primer = db.relationship("Primer", backref="recipes")
+    casing = db.relationship("Casing", backref="recipes")
+
+    @property
+    def caliber(self):
+        return self.bullet.caliber if self.bullet else None
+
+    @property
+    def powder_weight_display(self):
+        return f"{self.powder_weight:.2f} gr" if self.powder_weight else "—"
+
+    @property
+    def bullet_display(self):
+        if self.bullet:
+            return f"{self.bullet.manufacturer.name} {self.bullet.model} ({self.bullet.weight:g}gr)"
+        return None
+
+    @property
+    def powder_display(self):
+        if self.powder:
+            return f"{self.powder.manufacturer.name} {self.powder.name}"
+        return None
+
+    @property
+    def primer_display(self):
+        if self.primer:
+            return f"{self.primer.manufacturer.name} {self.primer.model}"
+        return None
+
+    @property
+    def casing_display(self):
+        return self.casing.name if self.casing else None
+
+    def __repr__(self):
+        return f"<Recipe {self.name}>"
+
+
 class Load(db.Model):
     __tablename__ = "loads"
     id = db.Column(db.String(36), primary_key=True, default=generate_uuid)
+    recipe_id = db.Column(db.String(36), db.ForeignKey("recipes.id"), nullable=True)
     bullet_lot_id = db.Column(
         db.String(36), db.ForeignKey("order_lots.id"), nullable=True
     )
     powder_lot_id = db.Column(
         db.String(36), db.ForeignKey("order_lots.id"), nullable=True
     )
-    powder_weight = db.Column(db.Float, nullable=True)  # grains, 2 decimal places
     primer_lot_id = db.Column(
         db.String(36), db.ForeignKey("order_lots.id"), nullable=True
     )
@@ -399,10 +480,16 @@ class Load(db.Model):
     notes = db.Column(db.Text, nullable=True)
     overall_length = db.Column(db.Float, nullable=True)  # inches, 4 decimal places
     cbto = db.Column(db.Float, nullable=True)  # inches, 4 decimal places
+    # Components discarded during loading (waste not part of usable rounds)
+    discarded_bullet = db.Column(db.Integer, nullable=True)
+    discarded_powder = db.Column(db.Float, nullable=True)  # grains, 2 decimal places
+    discarded_primer = db.Column(db.Integer, nullable=True)
+    discarded_casing = db.Column(db.Integer, nullable=True)
     date_created = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
 
+    recipe = db.relationship("Recipe", backref="loads")
     bullet_lot = db.relationship(
         "OrderLot", foreign_keys=[bullet_lot_id], backref="bullet_loads"
     )
@@ -416,12 +503,32 @@ class Load(db.Model):
         "OrderLot", foreign_keys=[casing_lot_id], backref="casing_loads"
     )
 
+    COMPONENT_TYPES = ("bullet", "powder", "primer", "casing")
+
+    @property
+    def powder_weight(self):
+        """Powder charge weight comes from the recipe."""
+        return self.recipe.powder_weight if self.recipe else None
+
+    @property
+    def name(self):
+        return self.recipe.name if self.recipe else "Load"
+
+    def discarded_for(self, component_type):
+        """Discarded units of a component type (0 when unset)."""
+        value = getattr(self, f"discarded_{component_type}", None)
+        return value or 0
+
+    @property
+    def has_discarded(self):
+        return any(self.discarded_for(c) for c in self.COMPONENT_TYPES)
+
     @property
     def cost_breakdown(self):
         """Calculate per-component cost for a single round.
 
         Returns a dict with keys: bullet, powder, primer, casing, total.
-        Powder cost = cost_per_grain * powder_weight.
+        Powder cost = cost_per_grain * powder_weight (from the recipe).
         All other components = cost_per_unit from their order lot.
         Values are None when data is insufficient to calculate.
         """
@@ -452,6 +559,62 @@ class Load(db.Model):
     def cost_per_round(self):
         """Estimated total cost per round based on order lot prices."""
         return self.cost_breakdown["total"]
+
+    @property
+    def waste_cost_breakdown(self):
+        """Cost of the components discarded while loading this batch.
+
+        Returns a dict with keys: bullet, powder, primer, casing, total.
+        """
+        costs = {}
+        lot_map = {
+            "bullet": self.bullet_lot,
+            "powder": self.powder_lot,
+            "primer": self.primer_lot,
+            "casing": self.casing_lot,
+        }
+        for component in self.COMPONENT_TYPES:
+            lot = lot_map[component]
+            discarded = self.discarded_for(component)
+            if lot and discarded and lot.cost_per_unit is not None:
+                costs[component] = lot.cost_per_unit * discarded
+            else:
+                costs[component] = None
+
+        known = [v for v in costs.values() if v is not None]
+        costs["total"] = sum(known) if known else None
+        return costs
+
+    @property
+    def true_cost_breakdown(self):
+        """True per-component cost per round, including discarded component waste.
+
+        Waste cost is spread across the usable rounds made in the batch. When
+        rounds made is unknown, falls back to the estimated cost per round.
+        """
+        estimated = self.cost_breakdown
+        waste = self.waste_cost_breakdown
+        rounds = self.rounds_made if self.rounds_made and self.rounds_made > 0 else None
+
+        costs = {}
+        for component in self.COMPONENT_TYPES:
+            base = estimated[component]
+            waste_cost = waste[component]
+            if base is None and waste_cost is None:
+                costs[component] = None
+            elif rounds:
+                costs[component] = (base or 0) + (waste_cost or 0) / rounds
+            else:
+                costs[component] = base
+
+        known = [v for v in costs.values() if v is not None]
+        costs["total"] = sum(known) if known else None
+        return costs
+
+    @property
+    def true_cost_per_round(self):
+        """True total cost per round including discarded component waste."""
+        return self.true_cost_breakdown["total"]
 
     @property
     def batch_cost_breakdown(self):
@@ -485,26 +648,80 @@ class Load(db.Model):
         return self.batch_cost_breakdown["total"]
 
     @property
+    def true_batch_cost_breakdown(self):
+        """Per-component batch cost including discarded component waste."""
+        if not self.rounds_made or self.rounds_made <= 0:
+            return {
+                "bullet": None,
+                "powder": None,
+                "primer": None,
+                "casing": None,
+                "total": None,
+            }
+
+        per_round = self.cost_breakdown
+        waste = self.waste_cost_breakdown
+        costs = {}
+        for component in self.COMPONENT_TYPES:
+            if per_round[component] is None and waste[component] is None:
+                costs[component] = None
+            else:
+                costs[component] = (
+                    (per_round[component] or 0) * self.rounds_made
+                ) + (waste[component] or 0)
+
+        known = [v for v in costs.values() if v is not None]
+        costs["total"] = sum(known) if known else None
+        return costs
+
+    @property
     def lot_usage_breakdown(self):
-        """Calculate component lot consumption for the full batch."""
+        """Calculate component lot consumption for the full batch.
+
+        Consumed units include the components discarded during loading.
+        """
         usage = {
-            "bullet": self._build_lot_usage(self.bullet_lot, units_per_round=1, unit_label="rounds"),
+            "bullet": self._build_lot_usage(
+                self.bullet_lot,
+                units_per_round=1,
+                unit_label="rounds",
+                discarded_units=self.discarded_for("bullet"),
+            ),
             "powder": self._build_lot_usage(
                 self.powder_lot,
                 units_per_round=self.powder_weight,
                 unit_label="grains",
+                discarded_units=self.discarded_for("powder"),
             ),
-            "primer": self._build_lot_usage(self.primer_lot, units_per_round=1, unit_label="rounds"),
-            "casing": self._build_lot_usage(self.casing_lot, units_per_round=1, unit_label="rounds"),
+            "primer": self._build_lot_usage(
+                self.primer_lot,
+                units_per_round=1,
+                unit_label="rounds",
+                discarded_units=self.discarded_for("primer"),
+            ),
+            "casing": self._build_lot_usage(
+                self.casing_lot,
+                units_per_round=1,
+                unit_label="rounds",
+                discarded_units=self.discarded_for("casing"),
+            ),
         }
         return usage
 
-    def _build_lot_usage(self, lot, units_per_round, unit_label):
+    def _build_lot_usage(self, lot, units_per_round, unit_label, discarded_units=0):
         """Build usage data for a component lot in the current batch."""
-        if lot is None or not self.rounds_made or self.rounds_made <= 0:
+        if lot is None:
             return None
 
-        if units_per_round is None or units_per_round <= 0:
+        rounds_made = self.rounds_made if self.rounds_made and self.rounds_made > 0 else 0
+        consumed_from_rounds = (
+            units_per_round * rounds_made
+            if units_per_round is not None and units_per_round > 0
+            else 0
+        )
+        consumed_units = consumed_from_rounds + (discarded_units or 0)
+
+        if consumed_units <= 0:
             return None
 
         if not lot.quantity or lot.quantity <= 0:
@@ -515,12 +732,13 @@ class Load(db.Model):
         else:
             total_units = lot.quantity
 
-        consumed_units = units_per_round * self.rounds_made
         percentage = (consumed_units / total_units) * 100 if total_units else None
 
         return {
             "lot": lot,
             "consumed_units": consumed_units,
+            "discarded_units": discarded_units or 0,
+            "rounds_units": consumed_from_rounds,
             "total_units": total_units,
             "percentage": percentage,
             "unit_label": unit_label,
