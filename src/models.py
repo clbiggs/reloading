@@ -415,8 +415,12 @@ class Recipe(db.Model):
     casing_id = db.Column(db.String(36), db.ForeignKey("casings.id"), nullable=True)
     powder_weight = db.Column(db.Float, nullable=True)  # grains, 2 decimal places
     notes = db.Column(db.Text, nullable=True)
-    is_testing = db.Column(db.Boolean, nullable=False, default=False)
-    is_abandoned = db.Column(db.Boolean, nullable=False, default=False)
+    is_testing = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.false()
+    )
+    is_abandoned = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.false()
+    )
     date_created = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )

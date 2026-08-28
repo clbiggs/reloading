@@ -249,8 +249,9 @@ def _migrate_loads_to_recipes(db_path):
                     """
                     INSERT INTO recipes (
                         id, name, bullet_id, powder_id, primer_id, casing_id,
-                        powder_weight, notes, date_created
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        powder_weight, notes, is_testing, is_abandoned,
+                        date_created
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?)
                     """,
                     (
                         recipe_id,
