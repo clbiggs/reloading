@@ -59,8 +59,8 @@
                             <td>{{ s.test_date.strftime('%Y-%m-%d') }}</td>
                             <td>
                                 {% if secondary_kind == 'load' %}
-                                    {% if s.load and s.load.bullet_lot and s.load.bullet_lot.bullet %}
-                                        {{ s.load.bullet_lot.bullet.model }}
+                                    {% if s.load and s.load.recipe %}
+                                        {{ s.load.recipe.name }}
                                     {% else %}—{% endif %}
                                 {% else %}
                                     {{ s.firearm.make ~ ' ' ~ s.firearm.model if s.firearm else '—' }}

@@ -1,84 +1,278 @@
 {% extends "base.html" %}
 {% from "macros.html" import form_actions %}
-{% block title %}{{ "Edit" if load else "Add" }} Load/Recipe - Reloading Tracker{% endblock %}
+{% block title %}{{ "Edit" if load else "Add" }} Load - Reloading Tracker{% endblock %}
 {% block content %}
-<h2>{{ "Edit" if load else "Add" }} Load / Recipe</h2>
+<h2>{{ "Edit" if load else "Add" }} Load</h2>
 <div class="card mt-3">
     <div class="card-body">
-        <form method="POST">
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label for="bullet_lot_id" class="form-label">Bullet Order Lot</label>
-                    <select class="form-select" id="bullet_lot_id" name="bullet_lot_id">
-                        <option value="">None</option>
-                        {% for lot in bullet_lots %}
-                        <option value="{{ lot.id }}" {% if load and load.bullet_lot_id == lot.id %}selected{% endif %}>
-                            {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label for="powder_lot_id" class="form-label">Powder Order Lot</label>
-                    <select class="form-select" id="powder_lot_id" name="powder_lot_id">
-                        <option value="">None</option>
-                        {% for lot in powder_lots %}
-                        <option value="{{ lot.id }}" {% if load and load.powder_lot_id == lot.id %}selected{% endif %}>
-                            {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="powder_weight" class="form-label">Powder Weight (grains)</label>
-                    <input type="number" step="0.01" class="form-control" id="powder_weight" name="powder_weight" value="{{ '%.2f'|format(load.powder_weight) if load and load.powder_weight else '' }}">
-                </div>
-                <div class="col-md-4">
-                    <label for="primer_lot_id" class="form-label">Primer Order Lot</label>
-                    <select class="form-select" id="primer_lot_id" name="primer_lot_id">
-                        <option value="">None</option>
-                        {% for lot in primer_lots %}
-                        <option value="{{ lot.id }}" {% if load and load.primer_lot_id == lot.id %}selected{% endif %}>
-                            {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="casing_lot_id" class="form-label">Casing Order Lot</label>
-                    <select class="form-select" id="casing_lot_id" name="casing_lot_id">
-                        <option value="">None</option>
-                        {% for lot in casing_lots %}
-                        <option value="{{ lot.id }}" {% if load and load.casing_lot_id == lot.id %}selected{% endif %}>
-                            {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="rounds_made" class="form-label">Rounds Made</label>
-                    <input type="number" step="1" min="1" class="form-control" id="rounds_made" name="rounds_made" value="{{ load.rounds_made if load and load.rounds_made else '' }}">
-                </div>
-                <div class="col-md-4">
-                    <label for="overall_length" class="form-label">Overall Length (in)</label>
-                    <input type="number" step="0.0001" class="form-control" id="overall_length" name="overall_length" value="{{ '%.4f'|format(load.overall_length) if load and load.overall_length else '' }}">
-                </div>
-                <div class="col-md-4">
-                    <label for="cbto" class="form-label">CBTO (in)</label>
-                    <input type="number" step="0.0001" class="form-control" id="cbto" name="cbto" value="{{ '%.4f'|format(load.cbto) if load and load.cbto else '' }}">
-                </div>
-                <div class="col-md-4">
-                    <label for="date_created" class="form-label">Date Created</label>
-                    <input type="date" class="form-control" id="date_created" name="date_created" value="{{ load.date_created.strftime('%Y-%m-%d') if load else '' }}">
-                </div>
-                <div class="col-12">
-                    <label for="notes" class="form-label">Notes</label>
-                    <textarea class="form-control" id="notes" name="notes" rows="3">{{ load.notes if load and load.notes else '' }}</textarea>
+        <form method="POST" id="loadForm">
+            {# --- Recipe Selection --- #}
+            <div class="card mb-3">
+                <div class="card-header"><h6 class="mb-0">Recipe</h6></div>
+                <div class="card-body">
+                    <div class="btn-group mb-3" role="group" aria-label="Recipe mode">
+                        <input type="radio" class="btn-check" name="recipe_mode" id="recipe_mode_existing" value="existing" autocomplete="off" checked>
+                        <label class="btn btn-outline-primary" for="recipe_mode_existing">Use Existing Recipe</label>
+
+                        <input type="radio" class="btn-check" name="recipe_mode" id="recipe_mode_new" value="new" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="recipe_mode_new">Create New Recipe</label>
+                    </div>
+
+                    {# Existing recipe selector #}
+                    <div id="existingRecipeSection">
+                        <label for="recipe_id" class="form-label">Select Recipe</label>
+                        <select class="form-select" id="recipe_id" name="recipe_id">
+                            <option value="">Choose a recipe...</option>
+                            {% for r in recipes %}
+                            <option value="{{ r.id }}"
+                                    data-bullet-id="{{ r.bullet_id or '' }}"
+                                    data-powder-id="{{ r.powder_id or '' }}"
+                                    data-primer-id="{{ r.primer_id or '' }}"
+                                    data-casing-id="{{ r.casing_id or '' }}"
+                                    data-powder-weight="{{ r.powder_weight or '' }}"
+                                    {% if (load and load.recipe_id == r.id) or (not load and request.args.get('recipe_id') == r.id) %}selected{% endif %}>
+                                {{ r.name }}{% if r.powder_weight %} — {{ "%.2f"|format(r.powder_weight) }}gr{% endif %}
+                                {% if r.is_abandoned %} (Abandoned){% elif r.is_testing %} (Testing){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Selecting a recipe filters the order lots below to matching components.</div>
+                    </div>
+
+                    {# New recipe fields #}
+                    <div id="newRecipeSection" class="row g-3 d-none">
+                        <div class="col-md-6">
+                            <label for="new_recipe_name" class="form-label">Recipe Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="new_recipe_name" name="new_recipe_name"
+                                   placeholder="e.g. 9mm 147gr Subsonic">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="new_powder_weight" class="form-label">Powder Weight (grains)</label>
+                            <input type="number" step="0.01" class="form-control" id="new_powder_weight" name="new_powder_weight">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new_bullet_id" class="form-label">Bullet</label>
+                            <select class="form-select" id="new_bullet_id" name="new_bullet_id">
+                                <option value="">None</option>
+                                {% for b in bullets %}
+                                <option value="{{ b.id }}">{{ b.manufacturer.name }} {{ b.model }} ({{ "%.2f"|format(b.weight) }}gr)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new_powder_id" class="form-label">Powder</label>
+                            <select class="form-select" id="new_powder_id" name="new_powder_id">
+                                <option value="">None</option>
+                                {% for p in powders %}
+                                <option value="{{ p.id }}">{{ p.manufacturer.name }} {{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new_primer_id" class="form-label">Primer</label>
+                            <select class="form-select" id="new_primer_id" name="new_primer_id">
+                                <option value="">None</option>
+                                {% for p in primers %}
+                                <option value="{{ p.id }}">{{ p.manufacturer.name }} {{ p.model }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new_casing_id" class="form-label">Casing</label>
+                            <select class="form-select" id="new_casing_id" name="new_casing_id">
+                                <option value="">None</option>
+                                {% for c in casings %}
+                                <option value="{{ c.id }}">{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            {# --- Order Lots --- #}
+            <div class="card mb-3">
+                <div class="card-header"><h6 class="mb-0">Component Order Lots</h6></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="bullet_lot_id" class="form-label">Bullet Order Lot</label>
+                            <select class="form-select" id="bullet_lot_id" name="bullet_lot_id">
+                                <option value="">None</option>
+                                {% for lot in bullet_lots %}
+                                <option value="{{ lot.id }}" data-bullet-id="{{ lot.bullet_id or '' }}" {% if load and load.bullet_lot_id == lot.id %}selected{% endif %}>
+                                    {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="powder_lot_id" class="form-label">Powder Order Lot</label>
+                            <select class="form-select" id="powder_lot_id" name="powder_lot_id">
+                                <option value="">None</option>
+                                {% for lot in powder_lots %}
+                                <option value="{{ lot.id }}" data-powder-id="{{ lot.powder_id or '' }}" {% if load and load.powder_lot_id == lot.id %}selected{% endif %}>
+                                    {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="primer_lot_id" class="form-label">Primer Order Lot</label>
+                            <select class="form-select" id="primer_lot_id" name="primer_lot_id">
+                                <option value="">None</option>
+                                {% for lot in primer_lots %}
+                                <option value="{{ lot.id }}" data-primer-id="{{ lot.primer_id or '' }}" {% if load and load.primer_lot_id == lot.id %}selected{% endif %}>
+                                    {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="casing_lot_id" class="form-label">Casing Order Lot</label>
+                            <select class="form-select" id="casing_lot_id" name="casing_lot_id">
+                                <option value="">None</option>
+                                {% for lot in casing_lots %}
+                                <option value="{{ lot.id }}" data-casing-id="{{ lot.casing_id or '' }}" {% if load and load.casing_lot_id == lot.id %}selected{% endif %}>
+                                    {{ lot.component_display }} — Lot: {{ lot.lot_number or 'N/A' }} ({{ lot.order_date.strftime('%Y-%m-%d') }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# --- Batch Info --- #}
+            <div class="card mb-3">
+                <div class="card-header"><h6 class="mb-0">Batch &amp; Measurements</h6></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="rounds_made" class="form-label">Rounds Made</label>
+                            <input type="number" step="1" min="1" class="form-control" id="rounds_made" name="rounds_made" value="{{ load.rounds_made if load and load.rounds_made else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="overall_length" class="form-label">Overall Length (in)</label>
+                            <input type="number" step="0.0001" class="form-control" id="overall_length" name="overall_length" value="{{ '%.4f'|format(load.overall_length) if load and load.overall_length else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="cbto" class="form-label">CBTO (in)</label>
+                            <input type="number" step="0.0001" class="form-control" id="cbto" name="cbto" value="{{ '%.4f'|format(load.cbto) if load and load.cbto else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="date_created" class="form-label">Date Created</label>
+                            <input type="date" class="form-control" id="date_created" name="date_created" value="{{ load.date_created.strftime('%Y-%m-%d') if load else '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# --- Discarded Components --- #}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Discarded Components</h6>
+                    <div class="form-text mb-0">Components wasted during loading (squib pulls, spilled powder, etc.). Discarded amounts are spread across usable rounds for true cost per round.</div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="discarded_bullet" class="form-label">Discarded Bullets</label>
+                            <input type="number" step="1" min="0" class="form-control" id="discarded_bullet" name="discarded_bullet" value="{{ load.discarded_bullet if load and load.discarded_bullet else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="discarded_powder" class="form-label">Discarded Powder (grains)</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="discarded_powder" name="discarded_powder" value="{{ '%.2f'|format(load.discarded_powder) if load and load.discarded_powder else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="discarded_primer" class="form-label">Discarded Primers</label>
+                            <input type="number" step="1" min="0" class="form-control" id="discarded_primer" name="discarded_primer" value="{{ load.discarded_primer if load and load.discarded_primer else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="discarded_casing" class="form-label">Discarded Casings</label>
+                            <input type="number" step="1" min="0" class="form-control" id="discarded_casing" name="discarded_casing" value="{{ load.discarded_casing if load and load.discarded_casing else '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea class="form-control" id="notes" name="notes" rows="3">{{ load.notes if load and load.notes else '' }}</textarea>
+            </div>
+
             {{ form_actions(url_for('loads.index')) }}
         </form>
     </div>
 </div>
 {% endblock %}
 
+{% block extra_scripts %}
+<script>
+const lotSelectIds = ['bullet_lot_id', 'powder_lot_id', 'primer_lot_id', 'casing_lot_id'];
+const componentAttrMap = {
+    bullet_lot_id: 'bulletId',
+    powder_lot_id: 'powderId',
+    primer_lot_id: 'primerId',
+    casing_lot_id: 'casingId',
+};
+
+function setModeVisibility() {
+    const isNew = document.getElementById('recipe_mode_new').checked;
+    document.getElementById('existingRecipeSection').classList.toggle('d-none', isNew);
+    document.getElementById('newRecipeSection').classList.toggle('d-none', !isNew);
+}
+
+function getSelectedRecipe() {
+    const select = document.getElementById('recipe_id');
+    if (!select || !select.value) return null;
+    return select.options[select.selectedIndex];
+}
+
+function filterLotSelectsByRecipe() {
+    const recipeOption = getSelectedRecipe();
+    const isNewMode = document.getElementById('recipe_mode_new').checked;
+
+    lotSelectIds.forEach(selectId => {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        const attr = componentAttrMap[selectId];
+        const currentValue = select.value;
+        // Required component id from the recipe (empty means no filtering)
+        const requiredId = (!isNewMode && recipeOption) ? (recipeOption.dataset[attr] || '') : '';
+        let currentValueVisible = false;
+
+        Array.from(select.options).forEach((option, index) => {
+            if (index === 0) {
+                option.hidden = false;
+                return;
+            }
+            const optionComponentId = option.dataset[attr] || '';
+            const shouldShow = !requiredId || optionComponentId === requiredId;
+            option.hidden = !shouldShow;
+            if (option.value === currentValue && shouldShow) {
+                currentValueVisible = true;
+            }
+        });
+
+        if (currentValue && !currentValueVisible) {
+            select.value = '';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    ['recipe_mode_existing', 'recipe_mode_new'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => {
+            setModeVisibility();
+            filterLotSelectsByRecipe();
+        });
+    });
+
+    document.getElementById('recipe_id').addEventListener('change', filterLotSelectsByRecipe);
+
+    setModeVisibility();
+    filterLotSelectsByRecipe();
+});
+</script>
+{% endblock %}

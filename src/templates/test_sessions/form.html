@@ -22,16 +22,14 @@
             </select>
         </div>
         <div class="col-md-4">
-            <label for="load_id" class="form-label">Load/Recipe</label>
+            <label for="load_id" class="form-label">Load</label>
             <select class="form-select" id="load_id" name="load_id">
                 <option value="">None</option>
                 {% for l in loads %}
-                <option value="{{ l.id }}" data-caliber-id="{{ l.bullet_lot.bullet.caliber_id if l.bullet_lot and l.bullet_lot.bullet else '' }}" {% if session and session.load_id == l.id %}selected{% endif %}>
-                    {% if l.bullet_lot and l.bullet_lot.bullet %}
-                        {{ l.bullet_lot.bullet.model }}{% if l.bullet_lot.bullet.weight %} {{ "%.2f"|format(l.bullet_lot.bullet.weight) }}gr{% endif %}
+                <option value="{{ l.id }}" data-caliber-id="{{ l.recipe.bullet.caliber_id if l.recipe and l.recipe.bullet else '' }}" {% if session and session.load_id == l.id %}selected{% endif %}>
+                    {% if l.recipe %}
+                        {{ l.recipe.name }}
                     {% endif %}
-                    {% if l.powder_lot and l.powder_lot.powder %} / {{ l.powder_lot.powder.name }}{% endif %}
-                    {% if l.powder_weight %} {{ "%.2f"|format(l.powder_weight) }}gr{% endif %}
                     ({{ l.date_created.strftime('%Y-%m-%d') }})
                 </option>
                 {% endfor %}

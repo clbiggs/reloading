@@ -14,6 +14,7 @@ from models import (
     Powder,
     FactoryAmmo,
     OrderLot,
+    Recipe,
     Load,
     Firearm,
     TestSession,
@@ -33,6 +34,7 @@ MODELS_IN_ORDER = [
     ("powders", Powder),
     ("factory_ammo", FactoryAmmo),
     ("order_lots", OrderLot),
+    ("recipes", Recipe),
     ("loads", Load),
     ("firearms", Firearm),
     ("test_sessions", TestSession),
@@ -79,7 +81,7 @@ def export():
     """Export all data as a JSON file download."""
     data = {"_meta": {
         "app": "reloading-tracker",
-        "version": "1.0",
+        "version": "2.0",
         "exported_at": datetime.now(timezone.utc).isoformat(),
     }}
 
@@ -131,16 +133,34 @@ def import_data():
 
         # Import data in dependency order
         total_imported = 0
+        legacy_load_powder_weights = {}
+        has_recipes_key = "recipes" in data
         for key, model in MODELS_IN_ORDER:
             rows = data.get(key, [])
             for row_data in rows:
-                # Parse datetime columns
+                # Capture legacy charge weights from pre-recipe backups
+                if key == "loads" and "powder_weight" in row_data:
+                    legacy_load_powder_weights[row_data.get("id")] = row_data.get(
+                        "powder_weight"
+                    )
+
+                # Parse datetime columns and drop columns unknown to this schema
+                clean_data = {}
                 for col in model.__table__.columns:
-                    if col.name in row_data and isinstance(col.type, db.DateTime):
-                        row_data[col.name] = _parse_datetime(row_data[col.name])
-                instance = model(**row_data)
+                    if col.name not in row_data:
+                        continue
+                    value = row_data[col.name]
+                    if value is not None and isinstance(col.type, db.DateTime):
+                        value = _parse_datetime(value)
+                    clean_data[col.name] = value
+                instance = model(**clean_data)
                 db.session.add(instance)
             total_imported += len(rows)
+
+        # Legacy backups (before recipes existed) need recipes derived from loads
+        if legacy_load_powder_weights and not has_recipes_key:
+            db.session.flush()
+            _create_recipes_for_legacy_loads(legacy_load_powder_weights)
 
         db.session.commit()
         flash(f"Backup restored successfully. {total_imported} records imported.", "success")
@@ -149,4 +169,75 @@ def import_data():
         flash(f"Import failed: {e}", "danger")
 
     return redirect(url_for("backup.index"))
+
+
+def _create_recipes_for_legacy_loads(powder_weight_map):
+    """Create recipes for loads from a pre-recipe backup and link them.
+
+    Loads are grouped by component selection and powder charge weight so
+    identical legacy setups reuse a single recipe.
+    """
+    recipe_cache = {}
+    name_counts = {}
+
+    for load in Load.query.filter(Load.recipe_id.is_(None)).all():
+        powder_weight = powder_weight_map.get(load.id)
+        bullet = load.bullet_lot.bullet if load.bullet_lot else None
+        powder = load.powder_lot.powder if load.powder_lot else None
+        primer = load.primer_lot.primer if load.primer_lot else None
+        casing = load.casing_lot.casing if load.casing_lot else None
+
+        key = (
+            bullet.id if bullet else None,
+            powder.id if powder else None,
+            primer.id if primer else None,
+            casing.id if casing else None,
+            powder_weight,
+        )
+
+        if key not in recipe_cache:
+            recipe = Recipe(
+                name=_build_legacy_recipe_name(
+                    bullet, powder, primer, casing, powder_weight, name_counts
+                ),
+                bullet_id=key[0],
+                powder_id=key[1],
+                primer_id=key[2],
+                casing_id=key[3],
+                powder_weight=powder_weight,
+            )
+            db.session.add(recipe)
+            db.session.flush()
+            recipe_cache[key] = recipe.id
+
+        load.recipe_id = recipe_cache[key]
+
+
+def _build_legacy_recipe_name(bullet, powder, primer, casing, powder_weight, name_counts):
+    """Build a descriptive recipe name from a legacy load's components."""
+    parts = []
+
+    if bullet:
+        parts.append(
+            f"{bullet.manufacturer.name} {bullet.model} ({bullet.weight:g}gr)"
+        )
+
+    if powder:
+        powder_desc = f"{powder.manufacturer.name} {powder.name}"
+        if powder_weight is not None:
+            parts.append(f"{powder_desc} {powder_weight:g}gr")
+        else:
+            parts.append(powder_desc)
+
+    if primer:
+        parts.append(f"{primer.manufacturer.name} {primer.model}")
+
+    if casing:
+        parts.append(casing.name)
+
+    name = " — ".join(parts)[:200] if parts else "Migrated Recipe"
+    name_counts[name] = name_counts.get(name, 0) + 1
+    if name_counts[name] > 1:
+        name = f"{name} ({name_counts[name]})"
+    return name
 

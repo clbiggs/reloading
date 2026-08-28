@@ -174,7 +174,10 @@
                     <dt class="col-sm-5">Ammunition Source</dt>
                     <dd class="col-sm-7">
                         {% if session.load %}
-                            <a href="{{ url_for('loads.view', id=session.load.id) }}">Load/Recipe</a>
+                            <a href="{{ url_for('loads.view', id=session.load.id) }}">
+                                {{ session.load.recipe.name if session.load.recipe else 'Load' }}
+                            </a>
+                            <br><small class="text-muted">Created {{ session.load.date_created.strftime('%Y-%m-%d') }}</small>
                         {% elif session.factory_ammo_lot %}
                             <a href="{{ url_for('order_lots.view', id=session.factory_ammo_lot.id) }}">{{ session.factory_ammo_lot.component_display }}</a>
                             <br><small class="text-muted">Lot: {{ session.factory_ammo_lot.lot_number or 'N/A' }}</small>

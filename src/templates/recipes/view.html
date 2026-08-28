@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Recipe Details - Reloading Tracker{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        <i class="bi bi-clipboard-check"></i> Recipe Details
+        {% if recipe.is_abandoned %}
+            <span class="badge bg-secondary fs-6 align-middle">Abandoned</span>
+        {% endif %}
+        {% if recipe.is_testing %}
+            <span class="badge bg-info text-dark fs-6 align-middle">Testing</span>
+        {% endif %}
+    </h2>
+    <div>
+        <a href="{{ url_for('recipes.edit', id=recipe.id) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+        <a href="{{ url_for('recipes.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card stat-card primary h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Recipe Name</div>
+                <div class="stat-value fs-4">{{ recipe.name }}</div>
+                <div class="small text-muted">Created {{ recipe.date_created.strftime('%Y-%m-%d') }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card success h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Powder Charge</div>
+                <div class="stat-value fs-4">{{ recipe.powder_weight_display if recipe.powder_weight else "—" }}</div>
+                <div class="small text-muted">{{ recipe.powder_display or "No powder selected" }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card info h-100">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase">Loads Using Recipe</div>
+                <div class="stat-value fs-4">{{ loads|length }}</div>
+                <div class="small text-muted">Total batches loaded</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Components</h6></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Bullet</dt>
+                    <dd class="col-sm-8">
+                        {% if recipe.bullet %}
+                            {{ recipe.bullet.manufacturer.name }} {{ recipe.bullet.model }}
+                            ({{ "%.2f"|format(recipe.bullet.weight) }}gr)
+                            <br><small class="text-muted">Caliber: {{ recipe.bullet.caliber.name }}</small>
+                        {% else %}—{% endif %}
+                    </dd>
+                    <dt class="col-sm-4">Powder</dt>
+                    <dd class="col-sm-8">{{ recipe.powder_display or "—" }}</dd>
+                    <dt class="col-sm-4">Powder Weight</dt>
+                    <dd class="col-sm-8">{{ "%.2f"|format(recipe.powder_weight) if recipe.powder_weight else "—" }} gr</dd>
+                    <dt class="col-sm-4">Primer</dt>
+                    <dd class="col-sm-8">{{ recipe.primer_display or "—" }}</dd>
+                    <dt class="col-sm-4">Casing</dt>
+                    <dd class="col-sm-8">{{ recipe.casing_display or "—" }}</dd>
+                </dl>
+                {% if recipe.notes %}
+                <hr>
+                <h6>Notes</h6>
+                <p class="mb-0">{{ recipe.notes }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><h6 class="mb-0">Component Order Lots Used</h6></div>
+            <div class="card-body">
+{% set lot_components = [
+    ('Bullet', 'bullet'),
+    ('Powder', 'powder'),
+    ('Primer', 'primer'),
+    ('Casing', 'casing'),
+] %}
+<ul class="list-unstyled mb-0">
+    {% for label, component_type in lot_components %}
+        {% set lots = component_lot_map[component_type] %}
+        {% if lots %}
+            <li class="mb-2">
+                <strong>{{ label }}</strong>
+                <ul class="mb-0 mt-1">
+                    {% for lot in lots %}
+                    <li>
+                        <a href="{{ url_for('order_lots.view', id=lot.id) }}" class="text-decoration-none">
+                            Lot {{ lot.lot_number or 'N/A' }}
+                        </a>
+                        <span class="text-muted small">({{ lot.order_date.strftime('%Y-%m-%d') }})</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+        {% endif %}
+    {% endfor %}
+</ul>
+{% if not component_lot_map.bullet and not component_lot_map.powder and not component_lot_map.primer and not component_lot_map.casing %}
+    <span class="text-muted">No order lots recorded for this recipe's components.</span>
+{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h6 class="mb-0"><i class="bi bi-journal-text"></i> Loads Using This Recipe</h6></div>
+    <div class="card-body p-0">
+        {% if loads %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th class="text-end">Rounds Made</th>
+                        <th class="text-end">Powder Wt (gr)</th>
+                        <th class="d-none d-md-table-cell">OAL (in)</th>
+                        <th class="d-none d-md-table-cell text-end">Est. Cost/Rd</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in loads %}
+                    <tr>
+                        <td><a href="{{ url_for('loads.view', id=l.id) }}" class="text-decoration-none">{{ l.date_created.strftime('%Y-%m-%d') }}</a></td>
+                        <td class="text-end">{{ l.rounds_made if l.rounds_made else "—" }}</td>
+                        <td class="text-end">{{ "%.2f"|format(l.powder_weight) if l.powder_weight else "—" }}</td>
+                        <td class="d-none d-md-table-cell">{{ "%.4f"|format(l.overall_length) if l.overall_length else "—" }}</td>
+                        <td class="d-none d-md-table-cell text-end">{{ "$%.2f"|format(l.cost_per_round) if l.cost_per_round is not none else "—" }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('loads.view', id=l.id) }}" class="btn btn-outline-info btn-action" title="View"><i class="bi bi-eye"></i></a>
+                            <a href="{{ url_for('loads.edit', id=l.id) }}" class="btn btn-outline-primary btn-action" title="Edit"><i class="bi bi-pencil"></i></a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="card-body">
+            <div class="alert alert-secondary mb-0">
+                No loads use this recipe yet.
+                <a href="{{ url_for('loads.add', recipe_id=recipe.id) }}">Create a load</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

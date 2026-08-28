@@ -135,7 +135,7 @@
 <script>
 const firearmSessionChartLabels = [
     {% for s in selected_sessions %}
-    {{ (s.test_date.strftime('%Y-%m-%d') ~ ' - ' ~ (s.load.bullet_lot.bullet.model if s.load and s.load.bullet_lot and s.load.bullet_lot.bullet else 'Unknown Load'))|tojson }},
+    {{ (s.test_date.strftime('%Y-%m-%d') ~ ' - ' ~ (s.load.recipe.name if s.load and s.load.recipe else 'Unknown Load'))|tojson }},
     {% endfor %}
 ];
 

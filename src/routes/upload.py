@@ -139,7 +139,7 @@ def index():
         load_id = request.form.get("load_id", "").strip()
         factory_ammo_lot_id = request.form.get("factory_ammo_lot_id", "").strip()
         if load_id and factory_ammo_lot_id:
-            flash("Select either a load/recipe or a factory ammo order lot, not both.", "danger")
+            flash("Select either a load or a factory ammo order lot, not both.", "danger")
             return render_template(
                 "upload/index.html",
                 firearms=firearms,

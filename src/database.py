@@ -2,6 +2,8 @@
 
 import os
 import sqlite3
+import uuid
+from datetime import datetime, timezone
 
 from models import db
 
@@ -81,6 +83,34 @@ def _run_migrations(db_path):
         if "rounds_made" not in cols:
             conn.execute("ALTER TABLE loads ADD COLUMN rounds_made INTEGER")
 
+    # Migration: add recipe_id and discarded component fields to loads
+    if _table_exists(db_path, "loads"):
+        cols = _get_table_columns(db_path, "loads")
+        if "recipe_id" not in cols:
+            conn.execute(
+                "ALTER TABLE loads ADD COLUMN recipe_id VARCHAR REFERENCES recipes(id)"
+            )
+        if "discarded_bullet" not in cols:
+            conn.execute("ALTER TABLE loads ADD COLUMN discarded_bullet INTEGER")
+        if "discarded_powder" not in cols:
+            conn.execute("ALTER TABLE loads ADD COLUMN discarded_powder FLOAT")
+        if "discarded_primer" not in cols:
+            conn.execute("ALTER TABLE loads ADD COLUMN discarded_primer INTEGER")
+        if "discarded_casing" not in cols:
+            conn.execute("ALTER TABLE loads ADD COLUMN discarded_casing INTEGER")
+
+    # Migration: add status flags to recipes
+    if _table_exists(db_path, "recipes"):
+        cols = _get_table_columns(db_path, "recipes")
+        if "is_testing" not in cols:
+            conn.execute(
+                "ALTER TABLE recipes ADD COLUMN is_testing BOOLEAN NOT NULL DEFAULT 0"
+            )
+        if "is_abandoned" not in cols:
+            conn.execute(
+                "ALTER TABLE recipes ADD COLUMN is_abandoned BOOLEAN NOT NULL DEFAULT 0"
+            )
+
     # Migration: add factory_ammo_lot_id to test_sessions
     if _table_exists(db_path, "test_sessions"):
         cols = _get_table_columns(db_path, "test_sessions")
@@ -97,6 +127,153 @@ def _run_migrations(db_path):
 
     conn.commit()
     conn.close()
+
+
+def _generate_uuid():
+    return str(uuid.uuid4())
+
+
+def _build_legacy_recipe_name(conn, load_row):
+    """Build a descriptive recipe name from a legacy load's components."""
+    parts = []
+
+    bullet_desc = conn.execute(
+        """
+        SELECT bm.name || ' ' || b.model || ' (' || CAST(b.weight AS TEXT) || 'gr)'
+        FROM bullets b
+        JOIN manufacturers bm ON b.manufacturer_id = bm.id
+        WHERE b.id = ?
+        """,
+        (load_row["bullet_id"],),
+    ).fetchone()
+    if bullet_desc:
+        parts.append(bullet_desc[0])
+
+    powder_desc = conn.execute(
+        """
+        SELECT pm.name || ' ' || p.name
+        FROM powders p
+        JOIN manufacturers pm ON p.manufacturer_id = pm.id
+        WHERE p.id = ?
+        """,
+        (load_row["powder_id"],),
+    ).fetchone()
+    powder_part = powder_desc[0] if powder_desc else None
+    if powder_part and load_row["powder_weight"] is not None:
+        weight = load_row["powder_weight"]
+        weight_text = f"{weight:g}"
+        parts.append(f"{powder_part} {weight_text}gr")
+    elif powder_part:
+        parts.append(powder_part)
+
+    primer_desc = conn.execute(
+        """
+        SELECT prm.name || ' ' || pr.model
+        FROM primers pr
+        JOIN manufacturers prm ON pr.manufacturer_id = prm.id
+        WHERE pr.id = ?
+        """,
+        (load_row["primer_id"],),
+    ).fetchone()
+    if primer_desc:
+        parts.append(primer_desc[0])
+
+    casing_desc = conn.execute(
+        "SELECT name FROM casings WHERE id = ?",
+        (load_row["casing_id"],),
+    ).fetchone()
+    if casing_desc:
+        parts.append(casing_desc[0])
+
+    if not parts:
+        return None
+    return " — ".join(parts)[:200]
+
+
+def _migrate_loads_to_recipes(db_path):
+    """Create recipes from legacy loads and link each load to its recipe.
+
+    Loads are grouped by component selection and powder charge weight so
+    identical legacy setups reuse a single recipe.
+    """
+    if not _table_exists(db_path, "loads") or not _table_exists(db_path, "recipes"):
+        return
+
+    load_cols = _get_table_columns(db_path, "loads")
+    if "powder_weight" not in load_cols or "recipe_id" not in load_cols:
+        return
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        pending = conn.execute(
+            """
+            SELECT l.id, l.powder_weight,
+                   bl.bullet_id AS bullet_id,
+                   pl.powder_id AS powder_id,
+                   prl.primer_id AS primer_id,
+                   cl.casing_id AS casing_id
+            FROM loads l
+            LEFT JOIN order_lots bl ON l.bullet_lot_id = bl.id
+            LEFT JOIN order_lots pl ON l.powder_lot_id = pl.id
+            LEFT JOIN order_lots prl ON l.primer_lot_id = prl.id
+            LEFT JOIN order_lots cl ON l.casing_lot_id = cl.id
+            WHERE l.recipe_id IS NULL
+            """
+        ).fetchall()
+
+        if not pending:
+            return
+
+        recipe_cache = {}
+        name_counts = {}
+        now = datetime.now(timezone.utc).isoformat()
+
+        for row in pending:
+            key = (
+                row["bullet_id"],
+                row["powder_id"],
+                row["primer_id"],
+                row["casing_id"],
+                row["powder_weight"],
+            )
+
+            if key not in recipe_cache:
+                name = _build_legacy_recipe_name(conn, row) or "Migrated Recipe"
+                name_counts[name] = name_counts.get(name, 0) + 1
+                if name_counts[name] > 1:
+                    name = f"{name} ({name_counts[name]})"
+
+                recipe_id = _generate_uuid()
+                conn.execute(
+                    """
+                    INSERT INTO recipes (
+                        id, name, bullet_id, powder_id, primer_id, casing_id,
+                        powder_weight, notes, date_created
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        recipe_id,
+                        name,
+                        key[0],
+                        key[1],
+                        key[2],
+                        key[3],
+                        key[4],
+                        None,
+                        now,
+                    ),
+                )
+                recipe_cache[key] = recipe_id
+
+            conn.execute(
+                "UPDATE loads SET recipe_id = ? WHERE id = ?",
+                (recipe_cache[key], row["id"]),
+            )
+
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def init_db(app):
@@ -117,4 +294,7 @@ def init_db(app):
 
     with app.app_context():
         db.create_all()
+
+    # Convert legacy loads into recipes (after create_all makes the recipes table)
+    _migrate_loads_to_recipes(db_path)
 
